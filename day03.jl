@@ -6,22 +6,6 @@ function split_in_half(s::String)
 end
 
 
-function shared_char(s1::String, s2::String)
-
-    d = Dict()
-
-    for a in s1
-        d[a] = 1
-    end
-
-    for b in s2
-        if haskey(d, b)
-            return b
-        end
-    end
-end
-
-
 function char_value(c::Char)
     lower = collect("abcdefghijklmnopqrstuvwxyz")
     upper = collect("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -34,12 +18,48 @@ function char_value(c::Char)
 end
 
 
+function shared_chars(strings::Vector{String})
+
+    if length(strings) >= 3
+        return shared_chars([shared_chars(strings[1], strings[2]);
+                            strings[3:end]])
+
+    elseif length(strings) == 2
+
+        s = Set(collect(strings[1]))
+        shared = ""
+
+        for a in strings[s]
+            if a in s
+                push(shared, a)
+            end
+        end
+
+        return shared
+
+    else
+        return nothing
+
+    end
+end
+
+
 open("day03.txt") do file
     priorities = Int[]
     for l in eachline(file)
         h = split_in_half(l)
-        c = shared_char(h[1], h[2])
+        c = shared_chars(h)
         push!(priorities, char_value(c))
     end
-    println(sum(priorities))
+    #display(sum(priorities))
 end
+
+open("day03.txt") do file
+    r = collect(eachline(file))
+    n_groups = round(Int, length(r) / 3)
+    groups = [[r[i], r[i+1], r[i+2]] for i in 1:n_groups]
+    #display(groups)
+end
+println()
+
+# TODO display not println
