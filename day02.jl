@@ -24,10 +24,10 @@ outcome_2 = Dict(
 
 open("day02.txt") do file
     score_1 = sum(outcome_1[l] for l in eachline(file))
-    println(score_1)
+    display(score_1)
 end
 
 open("day02.txt") do file
     score_2 = sum(outcome_2[l] for l in eachline(file))
-    println(score_2)
+    display(score_2)
 end
