@@ -1,3 +1,5 @@
+println("Day 1")
+
 open("day01.txt") do file
 
     counter = 0
@@ -13,7 +15,9 @@ open("day01.txt") do file
     end
 
     push!(totals, counter)
-    display(maximum(totals))
+    println("Part 1: ", maximum(totals))
     top_3_totals = sort(totals, rev=true)[1:3]
-    display(sum(top_3_totals))
+    println("Part 2: ", sum(top_3_totals))
 end
+
+println()

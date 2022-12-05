@@ -1,3 +1,5 @@
+println("Day 4")
+
 function parse_assignment(s::String)
     (s1, s2) = String.(split(s, "-"))
     s1_int = parse(Int, s1)
@@ -33,6 +35,8 @@ open("day04.txt") do file
     parsed = [parse_assignment.(s) for s in splits]
     subs = [is_subassignment(p[1], p[2]) for p in parsed]
     overlaps = [overlap(p[1], p[2]) for p in parsed]
-    display(sum(subs))
-    display(sum(overlaps))
+    println("Part 1: ", sum(subs))
+    println("Part 2: ", sum(overlaps))
 end
+
+println()

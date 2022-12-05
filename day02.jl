@@ -1,3 +1,5 @@
+println("Day 2")
+
 outcome_1 = Dict(
     "A X" => 1 + 3,
     "A Y" => 2 + 6,
@@ -24,10 +26,12 @@ outcome_2 = Dict(
 
 open("day02.txt") do file
     score_1 = sum(outcome_1[l] for l in eachline(file))
-    display(score_1)
+    println("Part 1: ", score_1)
 end
 
 open("day02.txt") do file
     score_2 = sum(outcome_2[l] for l in eachline(file))
-    display(score_2)
+    println("Part 2: ", score_2)
 end
+
+println()

@@ -1,3 +1,5 @@
+println("Day 3")
+
 function split_in_half(s::String)
     midpoint = round(Int, length(s) / 2)
     first_half = s[1:midpoint]
@@ -46,7 +48,7 @@ open("day03.txt") do file
     halves = split_in_half.(rucksacks)
     shared = shared_string.(halves)
     priorities = char_value.(only.(shared))
-    display(sum(priorities))
+    println("Part 1: ", sum(priorities))
 end
 
 open("day03.txt") do file
@@ -55,5 +57,7 @@ open("day03.txt") do file
     groups = [[r[3*i-2], r[3*i-1], r[3*i]] for i in 1:n_groups]
     badges = shared_string.(groups)
     priorities = char_value.(only.(badges))
-    display(sum(priorities))
+    println("Part 2: ", sum(priorities))
 end
+
+println()
