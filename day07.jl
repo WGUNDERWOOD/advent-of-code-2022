@@ -1,54 +1,95 @@
-println("Day 7")
-
-struct File
-    name::String
-    size::Int
-    parent
-end
+#println("Day 7")
 
 struct Directory
     name::String
     size::Real
-    directories::Vector{Directory}
-    files::Vector{File}
-    parent::Union{Directory, Nothing}
+    directories::Vector{String}
+    files::Vector{String}
+    parent::Union{String, Nothing}
 end
 
-function cd(name::String, cwd::Directory)
+struct File
+    name::String
+    size::Int
+    parent::Directory
+end
+
+mutable struct Filesystem
+    structure::Dict
+    cwd::String
+end
+
+function ls!(files::Vector{File}, directories::Vector{Directory}, fs::Filesystem)
+end
+
+function cd!(name::String, fs::Filesystem)
 
     if name == "/"
-        return "/"
+        fs.cwd = "/"
+        return fs
 
     elseif name == ".."
-        return cwd.parent
+        fs.cwd = fs.structure[fs.cwd].parent
+        return fs
 
     else
-        for dir in cwd.directories
-            if dir.name == name
-                return dir
-            end
+        old_cwd = fs.cwd
+        new_cwd = old_cwd * "/" * name
+        fs.cwd = replace(new_cwd, "//" => "/")
+
+        if !(fs.cwd in keys(fs.structure))
+            fs.structure[fs.cwd] = Directory(fs.cwd, NaN, String[], String[], nothing)
         end
+
+        return fs
     end
 
     error("Cannot cd: subdirectory not found")
 end
 
-function ls(cwd::Directory, filesystem::Dict)
-
+function chunk_output(output::Vector(String))
 end
 
-filesystem = Dict("/" => Directory("/", NaN, Directory[], File[], nothing))
-cwd = "/"
+#function ls(cwd::Directory, fs::Dict)
+
+#end
+
+fs = Filesystem(Dict("/" => Directory("/", NaN, String[], String[], nothing)), "/")
+#cd!("/", fs)
+#ls!([Directory("jmtrrrp", NaN, String[], String[], nothing)], [File("")] fs)
 
 
-display(filesystem)
+#cd!("jmtrrrp", fs)
 
 
 
 f = readlines("day07.txt")
 
-for l in f[1:10]
+for i in 1:10
+    l = f[i]
     println(l)
+    l_split = split(l, " ")
+
+    if l_split[1] == "\$"
+
+        if l_split[2] == "cd"
+            println("do cd stuff")
+            name = String(l_split[3])
+            cd!(name, fs)
+
+        elseif l_split[2] == "ls"
+            println("do ls stuff")
+
+            for j in 1:10
+                new_l = f[i+j]
+                new_l_split = split(new_l, " ")
+                if new_l_split[1] != "\$"
+                    println("ls output")
+                    println(new_l)
+                end
+            end
+        end
+    end
 end
 
 
