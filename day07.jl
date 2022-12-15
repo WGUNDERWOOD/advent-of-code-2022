@@ -1,12 +1,11 @@
-#println("Day 7")
+println("Day 7")
 
 mutable struct Directory
     name::String
     size::Real
-    directories::Vector{String}
-    files::Vector{String}
     parent::Union{String, Nothing}
 end
+
 
 struct File
     name::String
@@ -14,10 +13,12 @@ struct File
     parent::String
 end
 
+
 mutable struct Filesystem
     structure::Dict{String, Union{File, Directory}}
     cwd::String
 end
+
 
 function add_file!(name::String, size::Int, fs::Filesystem)
     full_name = fs.cwd * "/" * name
@@ -25,11 +26,13 @@ function add_file!(name::String, size::Int, fs::Filesystem)
     fs.structure[full_name] = File(full_name, size, fs.cwd)
 end
 
+
 function add_directory!(name::String, fs::Filesystem)
     full_name = fs.cwd * "/" * name
     full_name = replace(full_name, "//" => "/")
-    fs.structure[full_name] = Directory(full_name, 0, String[], String[], fs.cwd)
+    fs.structure[full_name] = Directory(full_name, NaN, fs.cwd)
 end
+
 
 function cd!(name::String, fs::Filesystem)
 
@@ -48,8 +51,6 @@ function cd!(name::String, fs::Filesystem)
 
         return fs
     end
-
-    error("Cannot cd: subdirectory not found")
 end
 
 
@@ -58,41 +59,41 @@ function propagate_sizes!(fs::Filesystem)
     depth = maximum([count(x -> (x == '/'), o.name) for o in values(fs.structure)])
 
     for d in 1:depth
-        for k in keys(fs.structure)
-            dir = fs.structure[k]
-            if isa(dir, Directory)
-                dir.size += sum([fs.structure[d].size for d in dir.directories])
-                dir.size += sum([fs.structure[f].size for f in dir.files])
+        for dir in values(fs.structure)
+            if isa(dir, Directory) && isnan(dir.size)
+                children = [x for x in values(fs.structure) if x.parent == dir.name]
+                if !isempty(children)
+                    if all([!isnan(x.size) for x in children])
+                        dir.size = sum(x.size for x in children)
+                    end
+                end
             end
         end
     end
 end
 
 
-function large_directories(threshold::Int, fs::Filesystem)
-
-    large_dirs = Directory[]
-
-    for k in keys(fs.structure)
-        object = fs.structure[k]
-        if isa(object, Directory)
-            if object.size >= threshold
-                push!(large_dirs, object)
-            end
-        end
-    end
-
-    return large_dirs
+function size_of_small_directories(threshold::Int, fs::Filesystem)
+    sizes = [x.size for x in values(fs.structure) if isa(x, Directory)]
+    small_sizes = [x for x in sizes if x <= threshold]
+    return sum(small_sizes)
 end
 
+
+function size_of_directory_to_delete(space_needed::Int, fs::Filesystem)
+    sizes = [x.size for x in values(fs.structure) if isa(x, Directory)]
+    large_enough_sizes = [x for x in sizes if x >= space_needed]
+    return minimum(large_enough_sizes)
+end
 
 
 f = readlines("day07.txt")
-fs = Filesystem(Dict("/" => Directory("/", NaN, String[], String[], nothing)), "/")
+fs = Filesystem(Dict("/" => Directory("/", NaN, nothing)), "/")
+
+# Build filesystem
 
 for l in f
 
-    println(l)
     l_split = split(l, " ")
 
     if l_split[1] == "\$" && l_split[2] == "cd"
@@ -114,15 +115,13 @@ for l in f
     end
 end
 
-#display(fs)
-#println(length(fs.structure))
-
+# Get the right directory sizes
 propagate_sizes!(fs)
-large = large_directories(100000, fs)
-display(large)
-println(sum([d.size for d in large]))
 
-#display(fs.structure)
+# Part 1
+println("Part 1: ", size_of_small_directories(100000, fs))
 
-#println("Part 1: ", first_n_all_different(f, 4))
-#println("Part 2: ", first_n_all_different(f, 14))
+# Part 2
+space_needed = fs.structure["/"].size - 40000000
+println("Part 2: ", size_of_directory_to_delete(space_needed, fs))
+println()

@@ -21,3 +21,4 @@ end
 f = readlines("day06.txt")[1]
 println("Part 1: ", first_n_all_different(f, 4))
 println("Part 2: ", first_n_all_different(f, 14))
+println()
