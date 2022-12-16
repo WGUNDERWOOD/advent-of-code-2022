@@ -1,3 +1,5 @@
+println("Day 8")
+
 function read_forest(filepath::String)
 
     file = readlines(filepath)
@@ -101,6 +103,20 @@ function get_visibility(forest::Matrix{Int})
 end
 
 
+function view_distance(x::Vector{Int})
+
+    n = length(x)
+
+    for i in 2:n
+        if x[i] >= x[1]
+            return i - 1
+        end
+    end
+
+    return n - 1
+end
+
+
 function get_scenic_score_top(forest::Matrix{Int})
 
     (m, n) = size(forest)
@@ -108,17 +124,7 @@ function get_scenic_score_top(forest::Matrix{Int})
 
     for i in 1:m
         for j in 1:n
-
-            if i == 1
-                scenic_score[i,j] = 0
-
-            elseif forest[i,j] > forest[i-1,j]
-                scenic_score[i,j] = scenic_score[i-1,j] + 1
-
-            else
-                scenic_score[i,j] = 1
-            end
-
+            scenic_score[i,j] = view_distance(forest[i:m,j])
         end
     end
 
@@ -167,14 +173,10 @@ function get_scenic_score(forest::Matrix{Int})
     return scenic_score
 end
 
-
-
-
-
 forest = read_forest("day08.txt")
-#forest = read_forest("small_forest.txt")
 visibility = get_visibility(forest)
-display(sum(visibility))
+println("Part 1: ", sum(visibility))
 
 scenic_score = get_scenic_score(forest)
-display(maximum(scenic_score))
+println("Part 2: ", maximum(scenic_score))
+println()
