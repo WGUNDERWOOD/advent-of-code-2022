@@ -1,31 +1,34 @@
-const Rope = Vector{Vector{Int64}}
-
-function Rope(n_knots::Int)
-    return fill([0,0], n_knots)
+mutable struct Rope
+    head::Vector{Int64}
+    tail::Vector{Int64}
 end
+
+Rope() = Rope([0,0], [0,0])
 
 function move_head!(motion::String, rope::Rope)
 
-    motion == "L" ? rope[1][1] -= 1 : nothing
-    motion == "R" ? rope[1][1] += 1 : nothing
-    motion == "U" ? rope[1][2] += 1 : nothing
-    motion == "D" ? rope[1][2] -= 1 : nothing
+    motion == "L" ? rope.head[1] -= 1 : nothing
+    motion == "R" ? rope.head[1] += 1 : nothing
+    motion == "U" ? rope.head[2] += 1 : nothing
+    motion == "D" ? rope.head[2] -= 1 : nothing
 
     return rope
 end
 
 function adjust_tail!(rope::Rope)
 
-    n_knots = length(rope)
+    distance = maximum(abs.(rope.head .- rope.tail))
 
-    for k in 1:n_knots-1
-        distance = maximum(abs.(rope[k] .- rope[k+1]))
-        if distance == 2
-            rope[k+1] += sign.(rope[k] - rope[k+1])
-        end
+    if distance <= 1
+        return rope
+
+    elseif distance == 2
+        rope.tail += sign.(rope.head - rope.tail)
+        return rope
+
+    else
+        error("distance more than 2")
     end
-
-    return rope
 end
 
 function parse_motions(filepath::String)
@@ -45,17 +48,15 @@ function parse_motions(filepath::String)
     return motions
 end
 
+rope = Rope()
 motions = parse_motions("day09.txt")
-
-# Part 1
-rope = Rope(2)
-tail_positions = [rope[end]]
+tail_positions = [rope.tail]
 
 for m in motions
     move_head!(m, rope)
     adjust_tail!(rope)
-    push!(tail_positions, copy(rope[end]))
-    println(rope)
+    push!(tail_positions, rope.tail)
 end
 
+println(rope)
 display(length(unique(tail_positions)))
