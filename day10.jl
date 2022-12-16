@@ -1,3 +1,5 @@
+println("Day 10")
+
 function noop!(register)
     push!(register, register[end])
 end
