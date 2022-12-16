@@ -1,8 +1,8 @@
+println("Day 9")
+
 const Rope = Vector{Vector{Int64}}
 
-function Rope(n_knots::Int)
-    return fill([0,0], n_knots)
-end
+Rope(n_knots::Int) = [[0,0] for _ in 1:n_knots]
 
 function move_head!(motion::String, rope::Rope)
 
@@ -36,18 +36,15 @@ function parse_motions(filepath::String)
     for l in file
         split_l = split(l, " ")
         reps = parse(Int, split_l[2])
-
-        for i in 1:reps
-            push!(motions, String(split_l[1]))
-        end
+        append!(motions, [String(split_l[1]) for _ in 1:reps])
     end
 
     return motions
 end
 
-motions = parse_motions("day09.txt")
 
 # Part 1
+motions = parse_motions("day09.txt")
 rope = Rope(2)
 tail_positions = [rope[end]]
 
@@ -55,7 +52,20 @@ for m in motions
     move_head!(m, rope)
     adjust_tail!(rope)
     push!(tail_positions, copy(rope[end]))
-    println(rope)
 end
 
-display(length(unique(tail_positions)))
+println("Part 1: ", length(unique(tail_positions)))
+
+
+# Part 2
+rope = Rope(10)
+tail_positions = [rope[end]]
+
+for m in motions
+    move_head!(m, rope)
+    adjust_tail!(rope)
+    push!(tail_positions, copy(rope[end]))
+end
+
+println("Part 2: ", length(unique(tail_positions)))
+println()
