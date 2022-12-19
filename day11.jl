@@ -1,21 +1,22 @@
-#println("Day 11")
+println("Day 11")
 
 
 mutable struct Monkey
     id::Int
-    items::Vector{Tuple{String, Int}}
+    items::Vector{Dict{Int, Int}}
     operation::Function
-    test::Function
+    test::Int
     dest::Dict{Bool, Int}
     inspections::Int
 end
 
 
-function Monkey(ss::Vector{String})
+function Monkey(ss::Vector{String}, div3::Bool)
 
-    items = Tuple{String, Int}[]
+    items = Dict{Int, Int}[]
     dest = Dict{Bool, Int}()
-    monkey = Monkey(0, items, x -> x, x -> x, dest, 0)
+    divisors = [2, 3, 5, 7, 11, 13, 17, 19, 23]
+    monkey = Monkey(0, items, x -> x, 0, dest, 0)
 
     for s in ss
         s_split = split(s, " ")
@@ -27,8 +28,15 @@ function Monkey(ss::Vector{String})
         elseif s_split[3] == "Starting"
             for i in s_split[5:end]
                 worry = parse(Int, replace(i, "," => ""))
-                item_id = string(monkey.id) * "," * string(worry)
-                push!(items, (item_id, worry))
+                remainders = Dict{Int, Int}()
+                for d in divisors
+                    if div3
+                        remainders[d] = worry
+                    else
+                        remainders[d] = rem(worry, d)
+                    end
+                end
+                push!(items, remainders)
             end
             monkey.items = items
 
@@ -42,8 +50,7 @@ function Monkey(ss::Vector{String})
 
         elseif s_split[3] == "Test:"
             if s_split[4:5] == ["divisible", "by"]
-                base = parse(Int, s_split[6])
-                test = x -> (x % base == 0)
+                test = parse(Int, s_split[6])
             end
             monkey.test = test
 
@@ -60,7 +67,7 @@ function Monkey(ss::Vector{String})
 end
 
 
-function parse_monkeys(filepath::String)
+function parse_monkeys(filepath::String, div3::Bool)
 
     file = readlines(filepath)
 
@@ -77,11 +84,11 @@ function parse_monkeys(filepath::String)
     end
 
     push!(monkeys_string, monkey_string)
-    return [Monkey(m) for m in monkeys_string]
+    return [Monkey(m, div3) for m in monkeys_string]
 end
 
 
-function perform_round!(monkeys::Vector{Monkey})
+function perform_round!(monkeys::Vector{Monkey}, div3::Bool)
 
     n = length(monkeys)
 
@@ -91,13 +98,17 @@ function perform_round!(monkeys::Vector{Monkey})
 
         for j in 1:length(items)
             item = items[1]
-            item_id = item[1]
-            worry = item[2]
-            new_worry = monkey.operation(worry)
-            new_worry = div(new_worry, 3)
-            test_result = monkey.test(new_worry)
+            new_item = Dict{Int, Int}()
+            for k in keys(item)
+                new_item[k] = monkey.operation(item[k])
+                if div3
+                    new_item[k] = div(new_item[k], 3)
+                else
+                    new_item[k] = new_item[k] % k
+                end
+            end
+            test_result = (new_item[monkey.test] % monkey.test == 0)
             target = monkey.dest[test_result]
-            new_item = (item_id, new_worry)
 
             for target_monkey in monkeys
                 if target_monkey.id == target
@@ -114,7 +125,14 @@ end
 
 function show(monkey::Monkey)
     println("Monkey ID: ", monkey.id)
-    println("Items: ", [item[2] for item in monkey.items])
+    println("Items:")
+    for item in monkey.items
+        print("    ")
+        for k in sort(collect(keys(item)))
+            print(k, " => ", item[k], ", ")
+        end
+        println()
+    end
     println("Inspections: ", monkey.inspections)
     println()
 end
@@ -126,23 +144,29 @@ function most_active(k::Int, monkeys::Vector{Monkey})
 end
 
 
-#monkeys = parse_monkeys("monkey.txt")
-monkeys = parse_monkeys("day11.txt")
-#show.(monkeys)
-
+# Part 1
+div3 = true
+monkeys = parse_monkeys("day11.txt", div3)
 n_rounds = 20
 
 for rep in 1:n_rounds
-    perform_round!(monkeys)
+    perform_round!(monkeys, div3)
 end
 
-# should be
-# 27019168
-# after 1000 rounds
+active_monkeys = most_active(2, monkeys)
+println("Part 1: ", prod([monkey.inspections for monkey in active_monkeys]))
 
-#show.(monkeys)
+
+# Part 2
+div3 = false
+monkeys = parse_monkeys("day11.txt", div3)
+n_rounds = 10000
+
+for rep in 1:n_rounds
+    perform_round!(monkeys, div3)
+end
 
 active_monkeys = most_active(2, monkeys)
-println(prod([monkey.inspections for monkey in active_monkeys]))
+println("Part 2: ", prod([monkey.inspections for monkey in active_monkeys]))
 
 println()
