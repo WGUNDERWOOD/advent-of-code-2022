@@ -1,3 +1,5 @@
+println("Day 13")
+
 struct Pair
     left::Array{}
 end
@@ -21,6 +23,24 @@ function parse_pairs(filepath::String)
     push!(pairs, pair)
 
     return pairs
+end
+
+
+function parse_packets(filepath::String)
+
+    packets = String[]
+    file = readlines(filepath)
+
+    for l in file
+        if l != ""
+            push!(packets, l)
+        end
+    end
+
+    dividers = ["[[2]]", "[[6]]"]
+    append!(packets, dividers)
+
+    return packets
 end
 
 
@@ -103,7 +123,6 @@ end
 
 function compare(left::String, right::String)
 
-    println("compare ", left, " against ", right)
     l_int = isint(left)
     r_int = isint(right)
 
@@ -123,21 +142,40 @@ function compare(left::String, right::String)
 end
 
 
+function key_indices(packets::Vector{String})
 
-#pairs = parse_pairs("pairs.txt")
+    ind1 = 0
+    ind2 = 0
+
+    for i in 1:length(packets)
+        if packets[i] == "[[2]]"
+            ind1 = i
+        elseif packets[i] == "[[6]]"
+            ind2 = i
+        end
+    end
+
+    return [ind1, ind2]
+end
+
+
+# Part 1
 pairs = parse_pairs("day13.txt")
 correct = Int[]
-
 
 for i in 1:length(pairs)
     pair = pairs[i]
     result = compare(pair[1], pair[2])
-    println(result)
     if result
         push!(correct, i)
     end
-    println()
 end
 
-#println(correct)
-println(sum(correct))
+println("Part 1: ", sum(correct))
+
+
+# Part 2
+packets = parse_packets("day13.txt")
+sorted_packets = sort(packets, lt = ((x, y) -> compare(x, y)))
+println("Part 2: ", prod(key_indices(sorted_packets)))
+println()
