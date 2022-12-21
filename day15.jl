@@ -1,3 +1,5 @@
+println("Day 15")
+
 struct Sensor
     loc_x::Int
     loc_y::Int
@@ -118,12 +120,14 @@ function intersects(sensor1::Sensor, sensor2::Sensor)
     points = Tuple{Int, Int}[]
 
     for i1 in [-1, 1], i2 in [-1, 1], i3 in [-1, 1]
-        x = i2 * (loc_x1 + loc_x2) + (loc_y2 - loc_y1) + i3 * dist2 - i1 * dist1
+        x = i2 * (loc_x1 + loc_x2) + (loc_y2 - loc_y1) + i3 * dist2 + i1 * dist1
         x = i2 * x / 2
         y = i2 * x - i2 * loc_x1 + loc_y1 - i1 * dist1
 
-        if abs(x - loc_x1) + abs(y - loc_y1) == dist1
-            if abs(x - loc_x2) + abs(y - loc_y2) == dist2
+        if abs(x - loc_x1) + abs(y - loc_y1) <= dist1 + 1
+            if abs(x - loc_x2) + abs(y - loc_y2) <= dist2 + 1
+                x = round(Int, x)
+                y = round(Int, y)
                 push!(points, (x, y))
             end
         end
@@ -146,13 +150,13 @@ end
 
 
 function isin(point::Tuple{Int, Int}, sensor::Sensor)
-
     (x, y) = point
     return abs(x - sensor.loc_x) + abs(y - sensor.loc_y) <= sensor.dist
 end
 
 
 function neighbors(point::Tuple{Int, Int})
+
     (x, y) = point
     nbors = Tuple{Int, Int}[]
 
@@ -166,32 +170,43 @@ function neighbors(point::Tuple{Int, Int})
 end
 
 
+function not_covered(sensors::Vector{Sensor}, lim::Int)
+
+    inter = intersects(sensors)
+    uncovered = Tuple{Int, Int}[]
+
+    for p in inter
+        for n in neighbors(p)
+            if (0 <= n[1] <= lim) && (0 <= n[2] <= lim)
+                covered = Bool[]
+                for s in sensors
+                    push!(covered, isin(n, s))
+                end
+
+                if !any(covered)
+                    push!(uncovered, n)
+                end
+            end
+        end
+    end
+
+    return unique(uncovered)
+end
+
+
+function frequency(point::Tuple{Int, Int}, lim::Int)
+    return lim * point[1] + point[2]
+end
+
+
 # Part 1
-#sensors = parse_sensors("signal.txt")
-#sensors = parse_sensors("day15.txt")
-#intervals = [impossible_x(2000000, sensor) for sensor in sensors]
-#println(cardinality(intervals))
+sensors = parse_sensors("day15.txt")
+intervals = [impossible_x(2000000, sensor) for sensor in sensors]
+println("Part 1: ", cardinality(intervals))
 
 # Part 2
-#sensors = parse_sensors("signal.txt")
-#sensors = parse_sensors("day15.txt")
-#inter = intersects(sensors)
-
-#for p in inter
-    #for n in neighbors(p)
-        #covered = Bool[]
-        #for s in sensors
-            #push!(covered, isin(n, s))
-        #end
-
-        #if !any(covered)
-            #println(n)
-        #end
-        #println(covered)
-    #end
-#end
-#display(inter)
-
-display(sensors[7])
-display(sensors[10])
-display(intersects(sensors[7], sensors[10]))
+sensors = parse_sensors("day15.txt")
+lim = 4000000
+uncovered = not_covered(sensors, lim)
+println("Part 2: ", frequency(uncovered[1], lim))
+println()
