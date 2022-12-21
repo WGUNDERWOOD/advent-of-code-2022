@@ -106,8 +106,92 @@ function cardinality(intervals::Vector{Interval})
 end
 
 
+function intersects(sensor1::Sensor, sensor2::Sensor)
+
+    loc_x1 = sensor1.loc_x
+    loc_y1 = sensor1.loc_y
+    dist1 = sensor1.dist
+    loc_x2 = sensor2.loc_x
+    loc_y2 = sensor2.loc_y
+    dist2 = sensor2.dist
+
+    points = Tuple{Int, Int}[]
+
+    for i1 in [-1, 1], i2 in [-1, 1], i3 in [-1, 1]
+        x = i2 * (loc_x1 + loc_x2) + (loc_y2 - loc_y1) + i3 * dist2 - i1 * dist1
+        x = i2 * x / 2
+        y = i2 * x - i2 * loc_x1 + loc_y1 - i1 * dist1
+
+        if abs(x - loc_x1) + abs(y - loc_y1) == dist1
+            if abs(x - loc_x2) + abs(y - loc_y2) == dist2
+                push!(points, (x, y))
+            end
+        end
+    end
+
+    return unique(points)
+end
+
+
+function intersects(sensors::Vector{Sensor})
+    inter = Tuple{Int, Int}[]
+    for s1 in sensors, s2 in sensors
+        if s1 != s2
+            append!(inter, intersects(s1, s2))
+        end
+    end
+
+    return unique(inter)
+end
+
+
+function isin(point::Tuple{Int, Int}, sensor::Sensor)
+
+    (x, y) = point
+    return abs(x - sensor.loc_x) + abs(y - sensor.loc_y) <= sensor.dist
+end
+
+
+function neighbors(point::Tuple{Int, Int})
+    (x, y) = point
+    nbors = Tuple{Int, Int}[]
+
+    for i in x-1:x+1
+        for j in y-1:y+1
+            push!(nbors, (i, j))
+        end
+    end
+
+    return nbors
+end
+
+
 # Part 1
 #sensors = parse_sensors("signal.txt")
-sensors = parse_sensors("day15.txt")
-intervals = [impossible_x(2000000, sensor) for sensor in sensors]
-println(cardinality(intervals))
+#sensors = parse_sensors("day15.txt")
+#intervals = [impossible_x(2000000, sensor) for sensor in sensors]
+#println(cardinality(intervals))
+
+# Part 2
+#sensors = parse_sensors("signal.txt")
+#sensors = parse_sensors("day15.txt")
+#inter = intersects(sensors)
+
+#for p in inter
+    #for n in neighbors(p)
+        #covered = Bool[]
+        #for s in sensors
+            #push!(covered, isin(n, s))
+        #end
+
+        #if !any(covered)
+            #println(n)
+        #end
+        #println(covered)
+    #end
+#end
+#display(inter)
+
+display(sensors[7])
+display(sensors[10])
+display(intersects(sensors[7], sensors[10]))
