@@ -12,8 +12,8 @@ end
 
 
 mutable struct Cave
-    valves::Dict{String, Valve}
-    tunnels::Dict{Tuple{String, String}, Tunnel}
+    valves::Vector{Valve}
+    tunnels::Vector{Tunnel}
     time::Int
     pressure::Int
     position::String
@@ -23,20 +23,20 @@ end
 function parse_cave(filepath::String)
 
     file = readlines(filepath)
-    valves = Dict{String, Valve}()
-    tunnels = Dict{Tuple{String, String}, Tunnel}()
+    valves = Valve[]
+    tunnels = Tunnel[]
 
     for l in file
         split_l = String.(split(l, [' ', ';', ',', '='], keepempty=false))
         id = split_l[2]
         flow = parse(Int, split_l[6])
-        valves[id] = Valve(id, flow)
+        push!(valves, Valve(id, flow))
 
         for t in split_l[11:end]
             source = id
             dest = t
             len = 1
-            tunnels[(source, dest)] = Tunnel(source, dest, len)
+            push!(tunnels, Tunnel(source, dest, len))
         end
     end
 
@@ -44,114 +44,126 @@ function parse_cave(filepath::String)
     pressure = 0
     position = "AA"
 
-    return Cave(valves, tunnels, time, pressure, position)
+    sorted_valves = sort(valves, by = (x -> x.id))
+    sorted_tunnels = sort(tunnels, by = (x -> x.source * x.dest))
+
+    return Cave(sorted_valves, sorted_tunnels, time, pressure, position)
 end
 
 
 function show(cave::Cave)
 
-    sorted_valves = sort(collect(values(cave.valves)), by = (x -> x.id))
-
     println("Valves:")
-    for valve in sorted_valves
+    for valve in cave.valves
         println("  ID: ", valve.id, "     Flow: ", valve.flow)
     end
 
-    sorted_tunnels = sort(collect(values(cave.tunnels)), by = (x -> x.source * x.dest))
-
     println("Tunnels:")
-    for tunnel in sorted_tunnels
+    for tunnel in cave.tunnels
         println("  ", tunnel.source, " -> ", tunnel.dest, "   Length: ", tunnel.len)
     end
 end
 
 
-function shortest_path(source::String, dest::String, cave::Cave)
+function shortest_path_length(source::String, dest::String, cave::Cave)
 
-    visited = Dict{String, Bool}()
-    dists = Dict{String, Float64}()
-
-    # initialize
-    for k in keys(cave.valves)
-        visited[k] = false
-        dists[k] = Inf
+    visited = [false for valve in cave.valves]
+    lens = [valve.id == source ? 0 : Inf for valve in cave.valves]
+    terminated = false
+    n = length(cave.valves)
+    m = length(cave.tunnels)
+    lookup = Dict()
+    for i in 1:n
+        lookup[cave.valves[i].id] = i
     end
 
-    dists[source] = 0.0
-    current = source
-    terminated = false
-
-    #for rep in 1:3
     while !terminated
 
-        unvisited_dists = [dists[k] for k in keys(cave.valves) if !visited[k]]
-        min_unvisited_dist = minimum(unvisited_dists)
-        current = [k for k in keys(cave.valves) if dists[k] == min_unvisited_dist
-                       && !visited[k]][1]
-        neighbors = [k[2] for k in keys(cave.tunnels) if k[1] == current]
-        for next in neighbors
-            dist = cave.tunnels[(current, next)].len
-            dists[next] = min(dists[current] + dist, dists[next])
-            #println(next)
+        min_unvis_len = minimum([lens[i] for i in 1:n if !visited[i]])
+        current = [i for i in 1:n
+                       if lens[i] == min_unvis_len && !visited[i]][1]
+        neighbors = [lookup[cave.tunnels[i].dest] for i in 1:m
+                         if cave.tunnels[i].source == cave.valves[current].id]
+
+        for i in 1:length(neighbors)
+            next = neighbors[i]
+            len = [t.len for t in cave.tunnels
+                       if lookup[t.source] == current && lookup[t.dest] == next][1]
+            lens[next] = min(lens[current] + len, lens[next])
         end
 
         visited[current] = true
-        unvisited_dists = [dists[k] for k in keys(cave.valves) if !visited[k]]
-        terminated = visited[dest] || minimum(unvisited_dists) == Inf
+        unvisited_lens = [lens[i] for i in 1:n if !visited[i]]
+        terminated = visited[lookup[dest]] || minimum(unvisited_lens) == Inf
 
     end
 
-    println()
-    println(current)
-    println()
-    for k in keys(dists)
-        println(k, ", ", dists[k], ", ", visited[k])
-    end
-
-
+    return lens[lookup[dest]]
 end
 
 
-#=
-function simplify!(cave::Cave)
+function complete!(cave::Cave)
 
-    no_flow = [valve for valve in values(cave.valves) if valve.flow == 0]
-
-    for i in 1:length(no_flow)
-        valve = no_flow[i]
-
-        # add new tunnels
-        for tunnel1 in values(cave.tunnels)
-            for tunnel2 in values(cave.tunnels)
-                if tunnel1.source != tunnel2.dest
-                    if (tunnel1.dest == valve.id) && (tunnel2.source == valve.id)
-                        new_source = tunnel1.source
-                        new_dest = tunnel1.source
-                        dist = tunnel1.dist + tunnel2.dist
-                        new_tunnel = Tunnel(tunnel1.source, tunnel2.dest, dist)
-                        cave.tunnels[(tunnel1.source, tunnel2.dest)],
-                    end
+    for valve1 in cave.valves
+        for valve2 in cave.valves
+            if valve1 != valve2
+                len = shortest_path_length(valve1.id, valve2.id, cave)
+                if len < Inf
+                    tunnel = Tunnel(valve1.id, valve2.id, len)
+                    push!(cave.tunnels, tunnel)
                 end
             end
         end
-
-        # delete zero flow valves
-        deleteat!(cave.valves, findall(v -> v == valve, cave.valves))
     end
-
-    # remove duplicates
-    dists = Dict()
-    for tunnel in cave.tunnels
-        if tunnel in keys(dists)
-            dists[tunnel] = min(dists[tunnel], tunnel.dist)
-        else
-            dists[tunnel] = tunnel.dist
-        end
-    end
-    cave.tunnels = collect(keys(dists))
 
     return nothing
 end
+
+
+function remove_duplicate_tunnels!(cave::Cave)
+
+    tunnels_dict = Dict()
+
+    for tunnel in cave.tunnels
+
+        source = tunnel.source
+        dest = tunnel.dest
+        id = (source, dest)
+
+        if id in keys(tunnels_dict)
+            tunnels_dict[id] = Tunnel(source, dest, min(tunnels_dict[id].len, tunnel.len))
+        else
+            tunnels_dict[id] = tunnel
+        end
+    end
+
+    cave.tunnels = collect(values(tunnels_dict))
+    cave.tunnels = sort(cave.tunnels, by = (x -> x.source * x.dest))
+    return nothing
+end
+
+
+function remove_zero_valves!(cave::Cave)
+
+    zero_ids = [v.id for v in cave.valves if v.flow == 0]
+    new_valves = [v for v in cave.valves if !(v.id in zero_ids)]
+    new_tunnels = [t for t in cave.tunnels if !(t.source in zero_ids)]
+    new_tunnels = [t for t in new_tunnels if !(t.dest in zero_ids)]
+
+    cave.valves = new_valves
+    cave.tunnels = new_tunnels
+    return nothing
+end
+
+
+function simplify!(cave::Cave)
+
+    complete!(cave)
+    remove_duplicate_tunnels!(cave)
+    remove_zero_valves!(cave)
+    return nothing
+end
+#=
 
 
 #function show(valves::Dict{String, Valve})
@@ -197,6 +209,6 @@ end
 
 cave = parse_cave("day16test.txt")
 show(cave)
-shortest_path("AA", "EE", cave)
-#simplify!(cave)
+simplify!(cave)
+show(cave)
 println()
