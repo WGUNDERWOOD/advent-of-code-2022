@@ -200,6 +200,7 @@ function open(cave::Cave)
             if !new_valve.open
                 new_cave.valves[i].open = true
                 new_cave.time += 1
+                new_cave.pressure += sum([v.flow for v in cave.valves if v.open])
             end
         end
     end
@@ -304,20 +305,79 @@ end
 
 # prepare data
 cave = parse_cave("day16test.txt")
-simplify!(cave)
+#simplify!(cave)
+
+
+cave = move("DD", cave)
+cave = open(cave)
+cave = move("CC", cave)
+cave = move("BB", cave)
+cave = open(cave)
+cave = move("AA", cave)
+cave = move("II", cave)
+cave = move("JJ", cave)
+cave = open(cave)
+cave = move("II", cave)
+cave = move("AA", cave)
+cave = move("DD", cave)
+cave = move("EE", cave)
+cave = move("FF", cave)
+cave = move("GG", cave)
+cave = move("HH", cave)
+cave = open(cave)
+cave = move("GG", cave)
+cave = move("FF", cave)
+cave = move("EE", cave)
+cave = open(cave)
+cave = move("DD", cave)
+cave = move("CC", cave)
+cave = open(cave)
+
+println(cave.pressure)
+println(cave.time)
+flow = sum([v.flow for v in cave.valves if v.open])
+println(flow)
+
+println(cave.pressure + (30 - cave.time) * flow)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#=
+
+
+
+
+
+
+
+
 ids = [valve.id for valve in cave.valves]
+n_ids = length(ids)
 limit = 30
 
 
 caves = Dict(cave => cave.pressure)
 
-for depth in 1:10
+for depth in 1:15
 
     println("depth: ", depth)
 
     for cave in collect(keys(caves))
 
-        for position in ids
+        for position in [v.id for v in cave.valves if (v.id != cave.position) && !v.open]
             moved_cave = move(position, cave)
             if !(moved_cave in keys(caves))
                 caves[moved_cave] = moved_cave.pressure
@@ -333,6 +393,7 @@ for depth in 1:10
 
     global caves = prune(limit, caves)
     println("num caves: ", length(caves))
+    println("best pressure: ", maximum(values(caves)))
 end
 
 println()
@@ -360,3 +421,5 @@ display(maximum(values(caves)))
 #println("done")
 #open!(cave)
 println()
+
+=#
