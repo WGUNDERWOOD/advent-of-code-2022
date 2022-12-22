@@ -1,6 +1,7 @@
 mutable struct Valve
     id::String
     flow::Int
+    open::Bool
 end
 
 
@@ -30,7 +31,8 @@ function parse_cave(filepath::String)
         split_l = String.(split(l, [' ', ';', ',', '='], keepempty=false))
         id = split_l[2]
         flow = parse(Int, split_l[6])
-        push!(valves, Valve(id, flow))
+        open = false
+        push!(valves, Valve(id, flow, open))
 
         for t in split_l[11:end]
             source = id
@@ -53,14 +55,23 @@ end
 
 function show(cave::Cave)
 
+    println("Time: ", cave.time)
+    println("Pressure released: ", cave.pressure)
+    println("Cuurent position: ", cave.position)
+
     println("Valves:")
     for valve in cave.valves
-        println("  ID: ", valve.id, "     Flow: ", valve.flow)
+        print("   ", valve.id)
+        print("   Flow: ", lpad(valve.flow, 2, " "))
+        print("   Open: ", valve.open)
+        println()
     end
 
     println("Tunnels:")
     for tunnel in cave.tunnels
-        println("  ", tunnel.source, " -> ", tunnel.dest, "   Length: ", tunnel.len)
+        print("   ", tunnel.source, " -> ", tunnel.dest)
+        print("   Length: ", tunnel.len)
+        println()
     end
 end
 
@@ -145,7 +156,7 @@ end
 
 function remove_zero_valves!(cave::Cave)
 
-    zero_ids = [v.id for v in cave.valves if v.flow == 0]
+    zero_ids = [v.id for v in cave.valves if v.flow == 0 && v.id != "AA"]
     new_valves = [v for v in cave.valves if !(v.id in zero_ids)]
     new_tunnels = [t for t in cave.tunnels if !(t.source in zero_ids)]
     new_tunnels = [t for t in new_tunnels if !(t.dest in zero_ids)]
@@ -157,12 +168,38 @@ end
 
 
 function simplify!(cave::Cave)
-
     complete!(cave)
     remove_duplicate_tunnels!(cave)
     remove_zero_valves!(cave)
     return nothing
 end
+
+
+function move!(position::String, cave::Cave)
+
+    if position != cave.position
+        tunnel = [t for t in cave.tunnels if t.source == cave.position && t.dest == position][1]
+        cave.time += tunnel.len
+        cave.pressure += sum([v.flow for v in cave.valves if v.open])
+        cave.position = position
+    end
+end
+
+
+function open!(cave::Cave)
+
+    for i in 1:length(cave.valves)
+        valve = cave.valves[i]
+        if valve.id == cave.position
+            if !valve.open
+                cave.valves[i].open = true
+                cave.time += 1
+            end
+        end
+    end
+end
+
+
 #=
 
 
@@ -208,7 +245,16 @@ end
 
 
 cave = parse_cave("day16test.txt")
-show(cave)
 simplify!(cave)
-show(cave)
+println("ready")
+
+for rep in 1:200000
+    position = rand([v.id for v in cave.valves])
+    #println(position)
+    move!(position, cave)
+    #show(cave)
+end
+
+println("done")
+#open!(cave)
 println()
