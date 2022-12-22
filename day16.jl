@@ -182,7 +182,7 @@ function move(position::String, cave::Cave)
     if position != cave.position
         tunnel = [t for t in cave.tunnels if t.source == cave.position && t.dest == position][1]
         new_cave.time += tunnel.len
-        new_cave.pressure += sum([v.flow for v in cave.valves if v.open])
+        new_cave.pressure += sum([v.flow for v in cave.valves if v.open]) * tunnel.len
         new_cave.position = position
     end
 
@@ -305,9 +305,8 @@ end
 
 # prepare data
 cave = parse_cave("day16test.txt")
-#simplify!(cave)
 
-
+#=
 cave = move("DD", cave)
 cave = open(cave)
 cave = move("CC", cave)
@@ -330,6 +329,22 @@ cave = move("FF", cave)
 cave = move("EE", cave)
 cave = open(cave)
 cave = move("DD", cave)
+cave = move("CC", cave)
+cave = open(cave)
+=#
+
+simplify!(cave)
+
+cave = move("DD", cave)
+cave = open(cave)
+cave = move("BB", cave)
+cave = open(cave)
+cave = move("JJ", cave)
+cave = open(cave)
+cave = move("HH", cave)
+cave = open(cave)
+cave = move("EE", cave)
+cave = open(cave)
 cave = move("CC", cave)
 cave = open(cave)
 
