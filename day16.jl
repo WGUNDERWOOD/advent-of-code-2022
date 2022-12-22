@@ -35,17 +35,13 @@ function parse_cave(filepath::String)
         push!(valves, Valve(id, flow, open))
 
         for t in split_l[11:end]
-            source = id
-            dest = t
-            len = 1
-            push!(tunnels, Tunnel(source, dest, len))
+            push!(tunnels, Tunnel(id, t, 1))
         end
     end
 
     time = 0
     pressure = 0
     position = "AA"
-
     sorted_valves = sort(valves, by = (x -> x.id))
     sorted_tunnels = sort(tunnels, by = (x -> x.source * x.dest))
 
@@ -76,21 +72,20 @@ function show(cave::Cave)
 end
 
 
-function shortest_path_length(source::String, dest::String, cave::Cave)
+function shortest_path_lengths(source::String, cave::Cave)
 
     visited = [false for valve in cave.valves]
     lens = [valve.id == source ? 0 : Inf for valve in cave.valves]
     terminated = false
     n = length(cave.valves)
     m = length(cave.tunnels)
-    lookup = Dict()
+    lookup = Dict{String, Int}()
     for i in 1:n
         lookup[cave.valves[i].id] = i
     end
 
     while !terminated
 
-        # TODO this is so slow
         min_unvis_len = minimum([lens[i] for i in 1:n if !visited[i]])
         current = [i for i in 1:n
                        if lens[i] == min_unvis_len && !visited[i]][1]
@@ -106,33 +101,35 @@ function shortest_path_length(source::String, dest::String, cave::Cave)
 
         visited[current] = true
         unvisited_lens = [lens[i] for i in 1:n if !visited[i]]
-        terminated = visited[lookup[dest]] || minimum(unvisited_lens) == Inf
+        terminated = length(unvisited_lens) == 0
 
     end
 
-    return lens[lookup[dest]]
+    return [lens[lookup[v.id]] for v in cave.valves]
 end
 
 
-function complete!(cave::Cave)
+function complete(cave::Cave)
+
+    new_cave = deepcopy(cave)
 
     for valve1 in cave.valves
-        for valve2 in cave.valves
+        lens = shortest_path_lengths(valve1.id, cave)
+        for i in 1:length(cave.valves)
+            valve2 = cave.valves[i]
+            len = lens[i]
             if valve1 != valve2
-                len = shortest_path_length(valve1.id, valve2.id, cave)
-                if len < Inf
-                    tunnel = Tunnel(valve1.id, valve2.id, len)
-                    push!(cave.tunnels, tunnel)
-                end
+                tunnel = Tunnel(valve1.id, valve2.id, len)
+                push!(new_cave.tunnels, tunnel)
             end
         end
     end
 
-    return nothing
+    return new_cave
 end
 
 
-function remove_duplicate_tunnels!(cave::Cave)
+function remove_duplicate_tunnels(cave::Cave)
 
     tunnels_dict = Dict()
 
@@ -149,33 +146,35 @@ function remove_duplicate_tunnels!(cave::Cave)
         end
     end
 
-    cave.tunnels = collect(values(tunnels_dict))
-    cave.tunnels = sort(cave.tunnels, by = (x -> x.source * x.dest))
-    return nothing
+    new_cave = deepcopy(cave)
+    new_cave.tunnels = collect(values(tunnels_dict))
+    new_cave.tunnels = sort(new_cave.tunnels, by = (x -> x.source * x.dest))
+    return new_cave
 end
 
 
-function remove_zero_valves!(cave::Cave)
+function remove_zero_valves(cave::Cave)
 
     zero_ids = [v.id for v in cave.valves if v.flow == 0 && v.id != "AA"]
     new_valves = [v for v in cave.valves if !(v.id in zero_ids)]
     new_tunnels = [t for t in cave.tunnels if !(t.source in zero_ids)]
     new_tunnels = [t for t in new_tunnels if !(t.dest in zero_ids)]
 
-    cave.valves = new_valves
-    cave.tunnels = new_tunnels
-    return nothing
+    new_cave = deepcopy(cave)
+    new_cave.valves = new_valves
+    new_cave.tunnels = new_tunnels
+    return new_cave
 end
 
 
-function simplify!(cave::Cave)
+function simplify(cave::Cave)
     println("Completing tunnels...")
-    complete!(cave)
+    new_cave = complete(cave)
     println("Removing duplicate tunnels...")
-    remove_duplicate_tunnels!(cave)
+    new_cave = remove_duplicate_tunnels(new_cave)
     println("Removing zero flow valves...")
-    remove_zero_valves!(cave)
-    return nothing
+    new_cave = remove_zero_valves(new_cave)
+    return new_cave
 end
 
 
@@ -345,7 +344,7 @@ cave = move("CC", cave)
 cave = open(cave)
 =#
 
-simplify!(cave)
+cave = simplify(cave)
 
 #=
 cave = move("DD", cave)
