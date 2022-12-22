@@ -90,6 +90,7 @@ function shortest_path_length(source::String, dest::String, cave::Cave)
 
     while !terminated
 
+        # TODO this is so slow
         min_unvis_len = minimum([lens[i] for i in 1:n if !visited[i]])
         current = [i for i in 1:n
                        if lens[i] == min_unvis_len && !visited[i]][1]
@@ -168,8 +169,11 @@ end
 
 
 function simplify!(cave::Cave)
+    println("Completing tunnels...")
     complete!(cave)
+    println("Removing duplicate tunnels...")
     remove_duplicate_tunnels!(cave)
+    println("Removing zero flow valves...")
     remove_zero_valves!(cave)
     return nothing
 end
@@ -257,6 +261,13 @@ function prune(limit::Int, caves::Dict{Cave, Int})
 end
 
 
+function total_pressure(limit::Int, cave::Cave)
+
+    flow = sum([v.flow for v in cave.valves if v.open])
+    return cave.pressure + (limit - cave.time) * flow
+end
+
+
 #=
 
 
@@ -305,6 +316,7 @@ end
 
 # prepare data
 cave = parse_cave("day16test.txt")
+#cave = parse_cave("day16.txt")
 
 #=
 cave = move("DD", cave)
@@ -335,6 +347,7 @@ cave = open(cave)
 
 simplify!(cave)
 
+#=
 cave = move("DD", cave)
 cave = open(cave)
 cave = move("BB", cave)
@@ -347,33 +360,13 @@ cave = move("EE", cave)
 cave = open(cave)
 cave = move("CC", cave)
 cave = open(cave)
+=#
 
-println(cave.pressure)
-println(cave.time)
-flow = sum([v.flow for v in cave.valves if v.open])
-println(flow)
-
-println(cave.pressure + (30 - cave.time) * flow)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#=
-
-
-
+#println(cave.pressure)
+#println(cave.time)
+#flow = sum([v.flow for v in cave.valves if v.open])
+#println(flow)
+#println(cave.pressure + (30 - cave.time) * flow)
 
 
 
@@ -386,29 +379,24 @@ limit = 30
 
 caves = Dict(cave => cave.pressure)
 
-for depth in 1:15
+for depth in 1:10
 
     println("depth: ", depth)
 
     for cave in collect(keys(caves))
 
         for position in [v.id for v in cave.valves if (v.id != cave.position) && !v.open]
-            moved_cave = move(position, cave)
-            if !(moved_cave in keys(caves))
-                caves[moved_cave] = moved_cave.pressure
+            new_cave = move(position, cave)
+            new_cave = open(new_cave)
+            if !(new_cave in keys(caves))
+                caves[new_cave] = new_cave.pressure
             end
         end
-
-        opened_cave = open(cave)
-        if !(opened_cave in keys(caves))
-            caves[opened_cave] = opened_cave.pressure
-        end
-
     end
 
     global caves = prune(limit, caves)
     println("num caves: ", length(caves))
-    println("best pressure: ", maximum(values(caves)))
+    println("best total pressure: ", maximum(total_pressure.(limit, keys(caves))))
 end
 
 println()
@@ -436,5 +424,3 @@ display(maximum(values(caves)))
 #println("done")
 #open!(cave)
 println()
-
-=#
