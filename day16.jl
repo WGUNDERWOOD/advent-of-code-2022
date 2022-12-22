@@ -175,28 +175,84 @@ function simplify!(cave::Cave)
 end
 
 
-function move!(position::String, cave::Cave)
+function move(position::String, cave::Cave)
+
+    new_cave = deepcopy(cave)
 
     if position != cave.position
         tunnel = [t for t in cave.tunnels if t.source == cave.position && t.dest == position][1]
-        cave.time += tunnel.len
-        cave.pressure += sum([v.flow for v in cave.valves if v.open])
-        cave.position = position
+        new_cave.time += tunnel.len
+        new_cave.pressure += sum([v.flow for v in cave.valves if v.open])
+        new_cave.position = position
     end
+
+    return new_cave
 end
 
 
-function open!(cave::Cave)
+function open(cave::Cave)
+
+    new_cave = deepcopy(cave)
 
     for i in 1:length(cave.valves)
-        valve = cave.valves[i]
-        if valve.id == cave.position
-            if !valve.open
-                cave.valves[i].open = true
-                cave.time += 1
+        new_valve = cave.valves[i]
+        if new_valve.id == cave.position
+            if !new_valve.open
+                new_cave.valves[i].open = true
+                new_cave.time += 1
             end
         end
     end
+
+    return new_cave
+end
+
+
+function better(cave1::Cave, cave2::Cave)
+
+    time = cave1.time <= cave2.time
+    pressure = cave1.pressure >= cave2.pressure
+    position = cave1.position == cave2.position
+
+    n = length(cave1.valves)
+    valves = all([cave1.valves[i].open >= cave2.valves[i].open for i in 1:n])
+
+    return time && pressure && position && valves
+end
+
+
+function remove_dominated(caves::Dict{Cave, Int})
+
+    new_caves = Dict{Cave, Int}()
+
+    for cave in keys(caves)
+        if !any([better(c, cave) for c in keys(new_caves)])
+            push!(new_caves, cave => cave.pressure)
+        end
+    end
+
+    return new_caves
+end
+
+
+function remove_time_limit(limit::Int, caves::Dict{Cave, Int})
+
+    new_caves = Dict{Cave, Int}()
+
+    for cave in keys(caves)
+        if cave.time <= limit
+            push!(new_caves, cave => cave.pressure)
+        end
+    end
+
+    return new_caves
+end
+
+
+function prune(limit::Int, caves::Dict{Cave, Int})
+    new_caves = remove_time_limit(limit, caves)
+    new_caves = remove_dominated(new_caves)
+    return new_caves
 end
 
 
@@ -244,17 +300,63 @@ end
 =#
 
 
+
+
+# prepare data
 cave = parse_cave("day16test.txt")
 simplify!(cave)
-println("ready")
+ids = [valve.id for valve in cave.valves]
+limit = 30
 
-for rep in 1:200000
-    position = rand([v.id for v in cave.valves])
-    #println(position)
-    move!(position, cave)
-    #show(cave)
+
+caves = Dict(cave => cave.pressure)
+
+for depth in 1:10
+
+    println("depth: ", depth)
+
+    for cave in collect(keys(caves))
+
+        for position in ids
+            moved_cave = move(position, cave)
+            if !(moved_cave in keys(caves))
+                caves[moved_cave] = moved_cave.pressure
+            end
+        end
+
+        opened_cave = open(cave)
+        if !(opened_cave in keys(caves))
+            caves[opened_cave] = opened_cave.pressure
+        end
+
+    end
+
+    global caves = prune(limit, caves)
+    println("num caves: ", length(caves))
 end
 
-println("done")
+println()
+
+display(maximum(values(caves)))
+#display.(values(caves))
+#println(counter)
+
+
+#c1 = deepcopy(cave)
+
+#println(length(caves))
+#caves = prune(caves)
+#println(length(caves))
+#show.(keys(caves))
+
+
+#for rep in 1:100000
+    #position = rand([v.id for v in cave.valves])
+    #println(position)
+    #move!(position, cave)
+    #show(cave)
+#end
+
+#println("done")
 #open!(cave)
 println()
