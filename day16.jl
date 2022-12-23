@@ -196,16 +196,12 @@ end
 function open(cave::Cave)
 
     new_cave = deepcopy(cave)
-
-    for i in 1:length(cave.valves)
-        new_valve = cave.valves[i]
-        if new_valve.id == cave.position
-            if !new_valve.open
-                new_cave.valves[i].open = true
-                new_cave.time += 1
-                new_cave.pressure += sum([v.flow for v in cave.valves if v.open])
-            end
-        end
+    n = length(cave.valves)
+    i = [i for i in 1:n if cave.valves[i].id == cave.position][1]
+    if !new_cave.valves[i].open
+        new_cave.valves[i].open = true
+        new_cave.time += 1
+        new_cave.pressure += sum([v.flow for v in cave.valves if v.open])
     end
 
     return new_cave
@@ -225,41 +221,6 @@ function better(cave1::Cave, cave2::Cave)
 end
 
 
-function remove_dominated(caves::Dict{Cave, Int})
-
-    new_caves = Dict{Cave, Int}()
-
-    for cave in keys(caves)
-        if !any([better(c, cave) for c in keys(new_caves)])
-            push!(new_caves, cave => cave.pressure)
-        end
-    end
-
-    return new_caves
-end
-
-
-function remove_time_limit(limit::Int, caves::Dict{Cave, Int})
-
-    new_caves = Dict{Cave, Int}()
-
-    for cave in keys(caves)
-        if cave.time <= limit
-            push!(new_caves, cave => cave.pressure)
-        end
-    end
-
-    return new_caves
-end
-
-
-function prune(limit::Int, caves::Dict{Cave, Int})
-    new_caves = remove_time_limit(limit, caves)
-    new_caves = remove_dominated(new_caves)
-    return new_caves
-end
-
-
 function total_pressure(limit::Int, cave::Cave)
 
     flow = sum([v.flow for v in cave.valves if v.open])
@@ -267,99 +228,88 @@ function total_pressure(limit::Int, cave::Cave)
 end
 
 
-#=
+function remove_dominated(caves::Vector{Cave})
 
+    new_caves = Cave[]
 
-#function show(valves::Dict{String, Valve})
-    #for k in sort(collect(keys(valves)))
-        #show(valves[k])
-    #end
-#end
+    # TODO this is O(n^2). Check on the fly?
+    for cave in caves
+        if !any([better(c, cave) for c in new_caves])
+            push!(new_caves, cave)
+        end
+    end
 
-
-#function show(path::Path)
-
-    #print(path[1])
-
-    #if length(path) > 1
-        #for p in path[2:end]
-            #print(" -> ")
-            #print(p)
-        #end
-     #end
-
-    #return nothing
-#end
-
-
-#function isvalid(path::Path, valves::Valve)
-
-    #@assert path[1] == "AA"
-
-    #if length(path) > 1
-        #for i in 2:length(path)
-            #source =
-            #@assert path[i] in path
-        #end
-    #end
-
-#end
-
-
-#function value(path::Path, valves::Vector{Valve})
-#end
-=#
+    return new_caves
+end
 
 
 
 
-# prepare data
-cave = parse_cave("day16test.txt")
-#cave = parse_cave("day16.txt")
 
-#=
-cave = move("DD", cave)
-cave = open(cave)
-cave = move("CC", cave)
-cave = move("BB", cave)
-cave = open(cave)
-cave = move("AA", cave)
-cave = move("II", cave)
-cave = move("JJ", cave)
-cave = open(cave)
-cave = move("II", cave)
-cave = move("AA", cave)
-cave = move("DD", cave)
-cave = move("EE", cave)
-cave = move("FF", cave)
-cave = move("GG", cave)
-cave = move("HH", cave)
-cave = open(cave)
-cave = move("GG", cave)
-cave = move("FF", cave)
-cave = move("EE", cave)
-cave = open(cave)
-cave = move("DD", cave)
-cave = move("CC", cave)
-cave = open(cave)
-=#
 
+#cave = parse_cave("day16test.txt")
+cave = parse_cave("day16.txt")
 cave = simplify(cave)
+limit = 30
+terminated = false
+best_pressure = -Inf
+
+checking = Cave[cave]
+checked = Cave[]
+
+function runall()
+
+    for rep in 1:3
+    #while !terminated
+
+        new_caves = Cave[]
+
+        for cave in checking
+
+            counter = 0
+
+            for position in [v.id for v in cave.valves if (v.id != cave.position) && !v.open]
+
+                counter +=1
+                new_cave = move(position, cave)
+                new_cave = open(new_cave)
+
+                if new_cave.time <= limit
+                    if !any([better(c, new_cave) for c in [checking; checked]])
+                        push!(new_caves, new_cave)
+                    end
+                end
+            end
+        end
+
+        append!(checked, checking)
+        global checked = remove_dominated(checked)
+
+        global checking = new_caves
+        global checking = remove_dominated(checking)
+
+        old_best_pressure = best_pressure
+        global best_pressure = maximum(total_pressure.(limit, checked))
+        global terminated = (best_pressure == old_best_pressure)
+        println("Total pressure: ", best_pressure)
+        println("Checked: ", length(checked))
+        println("Checking: ", length(checking))
+    end
+end
+
+
+
+
+
+
+
+
+
+
+
+
 
 #=
-cave = move("DD", cave)
-cave = open(cave)
-cave = move("BB", cave)
-cave = open(cave)
-cave = move("JJ", cave)
-cave = open(cave)
-cave = move("HH", cave)
-cave = open(cave)
-cave = move("EE", cave)
-cave = open(cave)
-cave = move("CC", cave)
-cave = open(cave)
-=#
 
 #println(cave.pressure)
 #println(cave.time)
@@ -373,7 +323,6 @@ cave = open(cave)
 
 ids = [valve.id for valve in cave.valves]
 n_ids = length(ids)
-limit = 30
 
 
 caves = Dict(cave => cave.pressure)
@@ -423,3 +372,4 @@ display(maximum(values(caves)))
 #println("done")
 #open!(cave)
 println()
+=#
