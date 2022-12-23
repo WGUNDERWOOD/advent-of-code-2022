@@ -114,10 +114,10 @@ function complete(valves::Vector{UInt8}, tunnels::Matrix{UInt8})
 end
 
 
-function remove_zero_valves(valves::Vector{UInt8}, tunnels::Matrix{UInt8}, AA_position::UInt8)
+function remove_zero_valves(valves::Vector{UInt8}, tunnels::Matrix{UInt8}, state::State)
 
     n = length(valves)
-    non_zeros = [i for i in 1:n if valves[i] != 0 || i == AA_position]
+    non_zeros = [i for i in 1:n if valves[i] != 0 || i == state.position]
     nnz = length(non_zeros)
     new_valves = Vector{UInt8}(undef, nnz)
     new_tunnels = Matrix{UInt8}(undef, nnz, nnz)
@@ -132,7 +132,11 @@ function remove_zero_valves(valves::Vector{UInt8}, tunnels::Matrix{UInt8}, AA_po
         end
     end
 
-    return (new_valves, new_tunnels)
+    new_opens = Set([i for i in 1:nnz if non_zeros[i] in state.opens])
+    new_position = [i for i in 1:nnz if non_zeros[i] == state.position][1]
+    new_state = State(new_opens, state.time, state.pressure, new_position)
+
+    return (new_valves, new_tunnels, new_state)
 end
 
 
@@ -171,7 +175,7 @@ end
 (valves, tunnels, state, AA_position) = parse_input("day16.txt")
 #(valves, tunnels, state, AA_position) = parse_input("day16test.txt")
 tunnels = complete(valves, tunnels)
-(valves, tunnels) = remove_zero_valves(valves, tunnels, AA_position)
+(valves, tunnels, state) = remove_zero_valves(valves, tunnels, state)
 
 n = length(valves)
 limit = 30
@@ -196,19 +200,19 @@ while !isempty(checking)
             new_score = total_pressure(limit, valves, new_state)
             if new_score > best_score
                 global best_score = new_score
-                show(new_state)
-                println(best_score)
+                #show(new_state)
+                #println(best_score)
             end
         end
     end
 
-    if rep % 1000 == 0
+    #if rep % 1000 == 0
         #println(rep)
         #println(best_score)
         #println(length(checking))
         #println(maximum([sum(values(s.opens)) for s in checking]))
         #println()
-    end
+    #end
     #show.(checking)
     #show.(checked)
     #println()
