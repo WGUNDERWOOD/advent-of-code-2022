@@ -1,9 +1,13 @@
+using Combinatorics
+
+
 mutable struct State
     opens::Dict{String, Bool}
     time::Int
     pressure::Int
     position::String
 end
+
 
 Valves = Dict{String, Int}
 Tunnels = Dict{Tuple{String, String}, Int}
@@ -42,15 +46,17 @@ function show(state::State)
 
     println("Time: ", state.time)
     println("Pressure released: ", state.pressure)
-    println("Cuurent position: ", state.position)
+    println("Current position: ", state.position)
 
-    println("Valves:")
-    for k in keys(state.valves)
-        print("   ", k)
-        print("   Open: ", state.opens[k])
-        println()
+    print("Open valves: ")
+    for k in keys(state.opens)
+        if state.opens[k]
+            print(k, " ")
+        end
     end
+    println()
 
+    return nothing
 end
 
 
@@ -123,11 +129,59 @@ function remove_zero_valves(valves::Valves, tunnels::Tunnels)
 end
 
 
+function move(position, valves, tunnels, state)
 
-#(valves, tunnels, state) = parse_state("day16.txt")
-(valves, tunnels, state) = parse_state("day16test.txt")
-#show(state)
+    new_state = state
+    len = tunnels[(state.position, position)]
+    new_state.time += len + 1
+    new_state.pressure += sum([valves[k] for k in ks if state.opens[k]]) * (len + 1)
+    new_state.position = position
+    new_state.opens[position] = true
 
+    return new_state
+end
+
+
+function total_pressure(limit::Int, valves::Valves, state::State)
+
+    total_flow = sum([valves[k] for k in keys(valves) if state.opens[k]])
+    return state.pressure + (limit - state.time) * total_flow
+end
+
+
+
+# load and process input
+(valves, tunnels, state) = parse_input("day16.txt")
+#(valves, tunnels, state) = parse_input("day16test.txt")
 tunnels = complete(valves, tunnels)
 (valves, tunnels) = remove_zero_valves(valves, tunnels)
-display(tunnels)
+ks = keys(valves)
+states = State[]
+limit = 30
+perms = permutations(collect(ks))
+
+# TODO this iteration is too slow
+# TODO need to abandon branches faster
+
+for perm in perms
+
+    println(perm)
+    if perm[1] != "AA"
+
+        new_state = deepcopy(state)
+
+        for i in 1:length(perm)
+            if new_state.time <= limit
+                new_state = move(perm[i], valves, tunnels, new_state)
+            end
+        end
+
+        if new_state.time <= limit
+            push!(states, new_state)
+        end
+    end
+end
+
+#show.(states)
+println(maximum([total_pressure(limit, valves, state) for state in states]))
+println()
