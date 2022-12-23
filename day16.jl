@@ -1,4 +1,4 @@
-using DataStructures
+println("Day 16")
 
 
 struct State
@@ -45,24 +45,6 @@ function parse_input(filepath::String)
     state = State(opens, time, pressure, AA_position)
 
     return (valves, tunnels, state, AA_position)
-end
-
-
-function Base.show(state::State)
-
-    println("Time: ", state.time)
-    println("Pressure released: ", state.pressure)
-    println("Current position: ", state.position)
-
-    print("Open valves: ")
-    for i in 1:length(state.opens)
-        if state.opens[i]
-            print(i, " ")
-        end
-    end
-    println()
-
-    return nothing
 end
 
 
@@ -163,11 +145,11 @@ function move(position::UInt8, valves::Vector{UInt8}, tunnels::Matrix{UInt8},
 end
 
 
-function best_pressure(valves::Vector{UInt8}, tunnels::Matrix{UInt8},
-                       state::State, limit::Int)
+function get_best_pressure(valves::Vector{UInt8}, tunnels::Matrix{UInt8},
+                           state::State, limit::Int)
 
     n = length(valves)
-    checking = Deque{State}()
+    checking = State[]
     push!(checking, state)
     best_pressure::Int = 0
 
@@ -190,53 +172,80 @@ function best_pressure(valves::Vector{UInt8}, tunnels::Matrix{UInt8},
 end
 
 
-
-# part 1
-(valves, tunnels, state, AA_position) = parse_input("day16.txt")
-#(valves, tunnels, state, AA_position) = parse_input("day16test.txt")
-tunnels = complete(valves, tunnels)
-(valves, tunnels, state) = remove_zero_valves(valves, tunnels, state)
-limit = 30
-println(best_pressure(valves, tunnels, state, limit))
-
-# part 2
-#limit = 30
-#println(best_pressure(valves, tunnels, state, limit))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#=
-for perm in perms
-
-    println(perm)
-    if perm[1] != "AA"
-
-        new_state = deepcopy(state)
-
-        for i in 1:length(perm)
-            if new_state.time <= limit
-                new_state = move(perm[i], valves, tunnels, new_state)
-            end
-        end
-
-        if new_state.time <= limit
-            push!(states, new_state)
-        end
-    end
+struct Path
+    valves::Vector{UInt8}
+    pressure::Int
 end
 
-#show.(states)
-println(maximum([total_pressure(limit, valves, state) for state in states]))
+
+function get_good_paths(valves::Vector{UInt8}, tunnels::Matrix{UInt8},
+                        state::State, limit::Int, good_pressure::Int)
+
+    n = length(valves)
+    checking = Tuple{State, Path}[]
+    good_paths = Path[]
+    path = Path([state.position], state.pressure)
+    push!(checking, (state, path))
+
+    while !isempty(checking)
+        (old_state, old_path) = pop!(checking)
+        for position in UInt8(1):UInt8(n)
+            if !old_state.opens[position]
+                new_state = move(position, valves, tunnels, old_state, limit)
+                if new_state.time <= limit
+                    new_path = Path([old_path.valves; position], new_state.pressure)
+                    push!(checking, (new_state, new_path))
+                end
+                if new_state.pressure > good_pressure
+                    new_path = Path([old_path.valves; position], new_state.pressure)
+                    push!(good_paths, new_path)
+                end
+            end
+        end
+    end
+
+    return good_paths
+end
+
+
+function get_best_disjoint_path_pressure(good_paths::Vector{Path})
+
+    best_pressure::Int = 0
+    npaths = length(good_paths)
+
+    for i in 1:npaths
+        for j in 1:npaths
+            if i < j
+                p1 = good_paths[i]
+                p2 = good_paths[j]
+                new_pressure = p1.pressure + p2.pressure
+                if new_pressure > best_pressure
+                    if isempty(intersect(p1.valves[2:end], p2.valves[2:end]))
+                        best_pressure = new_pressure
+                    end
+                end
+            end
+        end
+    end
+
+    return best_pressure
+end
+
+
+# parse input
+(valves, tunnels, state, AA_position) = parse_input("day16.txt")
+tunnels = complete(valves, tunnels)
+(valves, tunnels, state) = remove_zero_valves(valves, tunnels, state)
+
+# part 1
+limit = 30
+best_pressure = get_best_pressure(valves, tunnels, state, limit)
+println("Part 1:, ", best_pressure)
+
+# part 2
+limit = 26
+good_pressure = 1200
+good_paths = get_good_paths(valves, tunnels, state, limit, good_pressure)
+best_disjoint_pressure = get_best_disjoint_path_pressure(good_paths)
+println("Part 2:, ", best_disjoint_pressure)
 println()
-=#
