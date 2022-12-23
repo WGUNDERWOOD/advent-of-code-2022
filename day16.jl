@@ -2,7 +2,7 @@ using DataStructures
 
 
 struct State
-    opens::Set{UInt8}
+    opens::Vector{Bool}
     time::UInt16
     pressure::UInt16
     position::UInt8
@@ -23,7 +23,7 @@ function parse_input(filepath::String)
     end
 
     valves = Vector{UInt8}(undef, n)
-    opens = Set{UInt8}()
+    opens = Vector{Bool}(undef, n)
     tunnels = Matrix{UInt8}(undef, n, n)
     tunnels .= 0
 
@@ -31,7 +31,7 @@ function parse_input(filepath::String)
         l = file[i]
         split_l = String.(split(l, [' ', ';', ',', '='], keepempty=false))
         flow = parse(Int, split_l[6])
-        open = false
+        opens .= false
         valves[i] = flow
 
         for dest in split_l[11:end]
@@ -55,8 +55,10 @@ function Base.show(state::State)
     println("Current position: ", state.position)
 
     print("Open valves: ")
-    for k in state.opens
-        print(k, " ")
+    for i in 1:length(state.opens)
+        if state.opens[i]
+            print(i, " ")
+        end
     end
     println()
 
@@ -132,7 +134,7 @@ function remove_zero_valves(valves::Vector{UInt8}, tunnels::Matrix{UInt8}, state
         end
     end
 
-    new_opens = Set([i for i in 1:nnz if non_zeros[i] in state.opens])
+    new_opens = [state.opens[non_zeros[i]] for i in 1:nnz]
     new_position = [i for i in 1:nnz if non_zeros[i] == state.position][1]
     new_state = State(new_opens, state.time, state.pressure, new_position)
 
@@ -140,88 +142,70 @@ function remove_zero_valves(valves::Vector{UInt8}, tunnels::Matrix{UInt8}, state
 end
 
 
-function move(position::UInt8, valves::Vector{UInt8}, tunnels::Matrix{UInt8}, state::State)
+function move(position::UInt8, valves::Vector{UInt8}, tunnels::Matrix{UInt8},
+              state::State, limit::Int)
 
-    # TODO use remaining time/pressure instead?
     n = length(valves)
 
     if position == state.position
         time = state.time + 1
-        pressure = state.pressure + sum([valves[i] for i in 1:n if i in state.opens])
 
     else
         len = tunnels[state.position, position]
         time = state.time + len + 1
-        pressure = state.pressure + sum([valves[i] for i in 1:n if i in state.opens]) * (len + 1)
     end
 
+    pressure = state.pressure + valves[position] * max(limit - time, 0)
     opens = copy(state.opens)
-    push!(opens, position)
+    opens[position] = true
 
     return State(opens, time, pressure, position)
 end
 
 
-function total_pressure(limit::Int, valves::Vector{UInt8}, state::State)
+function best_pressure(valves::Vector{UInt8}, tunnels::Matrix{UInt8},
+                       state::State, limit::Int)
 
     n = length(valves)
-    total_flow = sum([valves[i] for i in 1:n if i in state.opens])
-    return state.pressure + (limit - state.time) * total_flow
-end
+    checking = Deque{State}()
+    push!(checking, state)
+    best_pressure::Int = 0
 
-
-
-# load and process input
-(valves, tunnels, state, AA_position) = parse_input("day16.txt")
-#(valves, tunnels, state, AA_position) = parse_input("day16test.txt")
-tunnels = complete(valves, tunnels)
-(valves, tunnels, state) = remove_zero_valves(valves, tunnels, state)
-
-n = length(valves)
-limit = 30
-checking = Deque{State}()
-push!(checking, state)
-best_score = 0
-
-rep = 0
-
-#for rep in 1:10000
-while !isempty(checking)
-
-    global rep += 1
-
-    old_state = popfirst!(checking)
-
-    for position in [UInt8(i) for i in 1:n if !(i in old_state.opens)]
-        new_state = move(position, valves, tunnels, old_state)
-
-        if new_state.time <= limit
-            push!(checking, new_state)
-            new_score = total_pressure(limit, valves, new_state)
-            if new_score > best_score
-                global best_score = new_score
-                #show(new_state)
-                #println(best_score)
+    while !isempty(checking)
+        old_state = pop!(checking)
+        for position in UInt8(1):UInt8(n)
+            if !old_state.opens[position]
+                new_state = move(position, valves, tunnels, old_state, limit)
+                if new_state.time <= limit
+                    push!(checking, new_state)
+                    if new_state.pressure > best_pressure
+                        best_pressure = new_state.pressure
+                    end
+                end
             end
         end
     end
 
-    #if rep % 1000 == 0
-        #println(rep)
-        #println(best_score)
-        #println(length(checking))
-        #println(maximum([sum(values(s.opens)) for s in checking]))
-        #println()
-    #end
-    #show.(checking)
-    #show.(checked)
-    #println()
+    return best_pressure
 end
 
-#show.(checking)
-#println(length(checking))
-#println(maximum([total_pressure(limit, valves, state) for state in checked]))
-println(best_score)
+
+
+# part 1
+(valves, tunnels, state, AA_position) = parse_input("day16.txt")
+#(valves, tunnels, state, AA_position) = parse_input("day16test.txt")
+tunnels = complete(valves, tunnels)
+(valves, tunnels, state) = remove_zero_valves(valves, tunnels, state)
+limit = 30
+println(best_pressure(valves, tunnels, state, limit))
+
+# part 2
+#limit = 30
+#println(best_pressure(valves, tunnels, state, limit))
+
+
+
+
 
 
 
