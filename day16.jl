@@ -13,6 +13,11 @@ Valves = Dict{String, Int}
 Tunnels = Dict{Tuple{String, String}, Int}
 
 
+function Base.copy(state::State)
+    return State(copy(state.opens), state.time, state.pressure, state.position)
+end
+
+
 function parse_input(filepath::String)
 
     file = readlines(filepath)
@@ -131,12 +136,21 @@ end
 
 function move(position, valves, tunnels, state)
 
-    new_state = state
-    len = tunnels[(state.position, position)]
-    new_state.time += len + 1
-    new_state.pressure += sum([valves[k] for k in ks if state.opens[k]]) * (len + 1)
-    new_state.position = position
-    new_state.opens[position] = true
+    new_state = copy(state)
+
+    if position == state.position
+        new_state.time += 1
+        new_state.pressure += sum([valves[k] for k in ks if state.opens[k]])
+        new_state.opens[position] = true
+
+    else
+        len = tunnels[(state.position, position)]
+        new_state.time += len + 1
+        new_state.pressure += sum([valves[k] for k in ks if state.opens[k]]) * (len + 1)
+        new_state.position = position
+        new_state.opens[position] = true
+
+    end
 
     return new_state
 end
@@ -155,14 +169,54 @@ end
 #(valves, tunnels, state) = parse_input("day16test.txt")
 tunnels = complete(valves, tunnels)
 (valves, tunnels) = remove_zero_valves(valves, tunnels)
-ks = keys(valves)
-states = State[]
 limit = 30
-perms = permutations(collect(ks))
+ks = keys(valves)
 
-# TODO this iteration is too slow
-# TODO need to abandon branches faster
+checking = State[state]
+checked = State[]
 
+rep = 0
+
+while !isempty(checking)
+
+    global rep += 1
+
+    old_state = pop!(checking)
+
+    for position in [k for k in ks if !old_state.opens[k]]
+        new_state = move(position, valves, tunnels, old_state)
+
+        if new_state.time <= limit
+            if all([new_state.opens[k] for k in ks])
+                push!(checked, new_state)
+            else
+                push!(checking, new_state)
+            end
+        end
+    end
+
+    println(rep)
+    println(length(checking))
+    show(checking[end])
+    #println()
+    show.(checked)
+end
+
+#show.(checking)
+#println(length(checking))
+#println(maximum([sum(values(s.opens)) for s in checked]))
+println(maximum([total_pressure(limit, valves, state) for state in checked]))
+
+
+
+
+
+
+
+
+
+
+#=
 for perm in perms
 
     println(perm)
@@ -185,3 +239,4 @@ end
 #show.(states)
 println(maximum([total_pressure(limit, valves, state) for state in states]))
 println()
+=#
