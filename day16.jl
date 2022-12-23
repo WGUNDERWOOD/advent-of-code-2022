@@ -240,12 +240,12 @@ tunnels = complete(valves, tunnels)
 # part 1
 limit = 30
 best_pressure = get_best_pressure(valves, tunnels, state, limit)
-println("Part 1:, ", best_pressure)
+println("Part 1: ", best_pressure)
 
 # part 2
 limit = 26
 good_pressure = 1200
 good_paths = get_good_paths(valves, tunnels, state, limit, good_pressure)
 best_disjoint_pressure = get_best_disjoint_path_pressure(good_paths)
-println("Part 2:, ", best_disjoint_pressure)
+println("Part 2: ", best_disjoint_pressure)
 println()
