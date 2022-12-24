@@ -1,7 +1,7 @@
 println("Day 17")
 
 mutable struct Chamber
-    tower::Matrix{Char}
+    tower::Vector{Vector{Char}}
     const jets::Vector{Char}
     jet_ind::Int
     const rocks::Vector{Matrix{Char}}
@@ -17,11 +17,11 @@ function parse_input(filepath::String)
     file = readlines(filepath)
     jets = only.(String.(split(file[1], "")))
 
-    tower = ['|' '.' '.' '.' '.' '.' '.' '.' '|';
-             '|' '.' '.' '.' '.' '.' '.' '.' '|';
-             '|' '.' '.' '.' '.' '.' '.' '.' '|';
-             '|' '.' '.' '.' '.' '.' '.' '.' '|';
-             '+' '-' '-' '-' '-' '-' '-' '-' '-']
+    tower = [['|', '.', '.', '.', '.', '.', '.', '.', '|'],
+             ['|', '.', '.', '.', '.', '.', '.', '.', '|'],
+             ['|', '.', '.', '.', '.', '.', '.', '.', '|'],
+             ['|', '.', '.', '.', '.', '.', '.', '.', '|'],
+             ['+', '-', '-', '-', '-', '-', '-', '-', '-']]
 
     jet_ind = 1
 
@@ -61,10 +61,10 @@ function show(chamber::Chamber)
     println("Tower layout: ")
     tower = chamber.tower
 
-    for i in 1:min(size(tower, 1), 10)
+    for i in 1:length(tower)
         print("  ")
-        for j in 1:size(tower, 2)
-            print(tower[i,j])
+        for j in 1:length(tower[1])
+            print(tower[i][j])
         end
         println()
     end
@@ -76,7 +76,9 @@ end
 
 function iterate!(chamber::Chamber)
 
-    if !('@' in chamber.tower)
+    n_relevant_rows = min(length(chamber.tower), 50)
+
+    if !(any('@' in row for row in chamber.tower[1:n_relevant_rows]))
         adjust_height!(chamber)
         spawn_rock!(chamber)
     else
@@ -94,8 +96,8 @@ function adjust_height!(chamber::Chamber)
     empty_row = ['|', '.', '.', '.', '.', '.', '.', '.', '|']
     n_empty_rows = 0
 
-    for i in 1:size(chamber.tower, 1)
-        if chamber.tower[i,:] == empty_row
+    for i in 1:length(chamber.tower)
+        if chamber.tower[i] == empty_row
             n_empty_rows += 1
         else
             break
@@ -103,8 +105,10 @@ function adjust_height!(chamber::Chamber)
     end
 
     n_extra_rows = 7 - n_empty_rows
-    extra_rows = repeat(reshape(empty_row, 1, 9), n_extra_rows, 1)
-    chamber.tower = vcat(extra_rows, chamber.tower)
+
+    for _ in 1:n_extra_rows
+        pushfirst!(chamber.tower, copy(empty_row))
+    end
 
     return nothing
 end
@@ -117,7 +121,7 @@ function spawn_rock!(chamber::Chamber)
     for i in 1:size(rock, 1)
         for j in 1:size(rock, 2)
             if rock[i,j] == '#'
-                chamber.tower[i+4-size(rock, 1), j+3] = '@'
+                chamber.tower[i+4-size(rock, 1)][j+3] = '@'
             end
         end
     end
@@ -128,26 +132,34 @@ function spawn_rock!(chamber::Chamber)
 end
 
 
-function apply_jet!(chamber::Chamber)
+function get_at_locs(tower::Vector{Vector{Char}})
 
-    n_relevant_rows = min(size(chamber.tower, 1), 50)
-    n2 = size(chamber.tower, 2)
+    n1 = min(length(tower), 50)
+    n2 = length(tower[1])
     at_locs = Tuple{Int, Int}[]
 
-    for i in 1:n_relevant_rows
+    for i in 1:n1
+        row = tower[i]
         for j in 1:n2
-            if chamber.tower[i,j] == '@'
+            if row[j] == '@'
                 push!(at_locs, (i,j))
             end
         end
     end
 
+    return at_locs
+end
+
+
+function apply_jet!(chamber::Chamber)
+
+    at_locs = get_at_locs(chamber.tower)
     jet = chamber.jets[chamber.jet_ind]
 
     jet == '>' ? dir = 1 : dir = -1
-    if all([chamber.tower[i, j + dir] in ['.', '@'] for (i, j) in at_locs])
-        for loc in at_locs; chamber.tower[loc[1], loc[2]] = '.'; end
-        for loc in at_locs; chamber.tower[loc[1], loc[2] + dir] = '@'; end
+    if all([chamber.tower[i][j + dir] in ['.', '@'] for (i, j) in at_locs])
+        for loc in at_locs; chamber.tower[loc[1]][loc[2]] = '.'; end
+        for loc in at_locs; chamber.tower[loc[1]][loc[2] + dir] = '@'; end
     end
 
     chamber.jet_ind = 1 + (chamber.jet_ind % length(chamber.jets))
@@ -157,25 +169,15 @@ end
 
 function apply_fall!(chamber::Chamber)
 
-    n_relevant_rows = min(size(chamber.tower, 1), 50)
-    n2 = size(chamber.tower, 2)
-    at_locs = Tuple{Int, Int}[]
+    at_locs = get_at_locs(chamber.tower)
 
-    for i in 1:n_relevant_rows
-        for j in 1:n2
-            if chamber.tower[i,j] == '@'
-                push!(at_locs, (i,j))
-            end
-        end
-    end
-
-    if all([chamber.tower[i+1, j] in ['.', '@'] for (i, j) in at_locs])
-        for loc in at_locs; chamber.tower[loc[1], loc[2]] = '.'; end
-        for loc in at_locs; chamber.tower[loc[1]+1, loc[2]] = '@'; end
+    if all([chamber.tower[i+1][j] in ['.', '@'] for (i, j) in at_locs])
+        for loc in at_locs; chamber.tower[loc[1]][loc[2]] = '.'; end
+        for loc in at_locs; chamber.tower[loc[1]+1][loc[2]] = '@'; end
     else
-        for loc in at_locs; chamber.tower[loc[1], loc[2]] = '#'; end
+        for loc in at_locs; chamber.tower[loc[1]][loc[2]] = '#'; end
         top_hash = minimum(loc[1] for loc in at_locs)
-        chamber.rock_height = size(chamber.tower, 1) - top_hash
+        chamber.rock_height = length(chamber.tower) - top_hash
     end
 
     return nothing
@@ -192,8 +194,9 @@ function equivalent(chamber1::Chamber, chamber2::Chamber)
     rock = chambers[1].rocks[chamber1.rock_ind - 1]
     rock_width = size(rock, 2)
 
-    highest_rock_ind = minimum([loc[1] for loc in findall(x -> x == '#', chamber1.tower)])
-    highest_rocks = chamber1.tower[highest_rock_ind, :]
+    n1 = length(chamber1.tower)
+    highest_rock_ind = minimum([i for i in 1:n1 if '#' in chamber1.tower[i]])
+    highest_rocks = chamber1.tower[highest_rock_ind]
     width_bool = true
 
     for i in 1:length(highest_rocks) - rock_width + 1
@@ -201,8 +204,8 @@ function equivalent(chamber1::Chamber, chamber2::Chamber)
             highest_rocks[i:i+rock_width-1] != ['.' for _ in 1:rock_width]
     end
 
-    tower_bool = chamber1.tower[1:highest_rock_ind,:] ==
-        chamber2.tower[1:highest_rock_ind,:]
+    tower_bool = chamber1.tower[1:highest_rock_ind] ==
+        chamber2.tower[1:highest_rock_ind]
 
     return jets_bool && jet_ind_bool && rocks_bool &&
         rock_ind_bool && width_bool && tower_bool
@@ -211,18 +214,12 @@ end
 
 # part 1
 chamber = parse_input("day17.txt")
-n_rocks = 0
 
-while n_rocks <= 2022
+while chamber.n_rocks <= 2022
     iterate!(chamber)
-    global n_rocks = chamber.n_rocks
 end
 
 println("Part 1: ", chamber.rock_height)
-
-
-
-
 
 
 # part 2
