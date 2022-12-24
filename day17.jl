@@ -54,7 +54,7 @@ function show(chamber::Chamber)
     println("Tower layout: ")
     tower = chamber.tower
 
-    for i in 1:size(tower, 1)
+    for i in 1:min(size(tower, 1), 10)
         print("  ")
         for j in 1:size(tower, 2)
             print(tower[i,j])
@@ -161,16 +161,77 @@ end
 
 
 # part 1
+#chamber = parse_input("day17.txt")
+#chamber = parse_input("day17test.txt")
+#n_rocks = 0
+
+#while n_rocks <= 2022
+    #iterate!(chamber)
+    #global n_rocks = chamber.n_rocks
+#end
+
+#height = get_height(chamber)
+#println(height)
+
+# part 2
+
 chamber = parse_input("day17.txt")
 #chamber = parse_input("day17test.txt")
+chambers = Chamber[]
+
+for rep in 1:3e4
+    iterate!(chamber)
+    if chamber.jet_ind == 3 && chamber.rock_ind == 2 && rep >= 10
+        push!(chambers, deepcopy(chamber))
+    end
+end
+
+
+# Now we show that the two chambers picked are equivalent
+# in the sense that the future pattern of blocks is the same.
+
+# First verify the basic properties
+@assert length(chambers) == 2
+@assert chambers[1].jets == chambers[2].jets
+@assert chambers[1].jet_ind == chambers[2].jet_ind
+@assert chambers[1].rocks == chambers[2].rocks
+@assert chambers[1].rock_ind == chambers[2].rock_ind
+
+# Now check the falling rock is at least four squares wide
+rock_ind = chambers[1].rock_ind
+rock = chambers[1].rocks[rock_ind - 1]
+@assert size(rock, 2) >= 4
+
+# Now check the highest solid rock has no gaps larger than three
+highest_rock_ind = minimum([loc[1] for loc in findall(x -> x == '#', chambers[1].tower)])
+highest_rocks = chambers[1].tower[highest_rock_ind, :]
+
+for i in 1:length(highest_rocks)-3
+    @assert highest_rocks[i:i+3] != ['.', '.', '.', '.']
+end
+
+# Finally check that the two chamber towers look the same up to this point
+@assert chambers[1].tower[1:highest_rock_ind,:] == chambers[2].tower[1:highest_rock_ind,:]
+
+# Get the period (in units of rocks)
+period = chambers[2].n_rocks - chambers[1].n_rocks
+quotient = div(1000000000000, period)
+remainder = 1000000000000 % period
+period_height = get_height(chambers[2]) - get_height(chambers[1])
+
+chamber = parse_input("day17.txt")
+#chamber = parse_input("day17test.txt")
+
 n_rocks = 0
 
-while n_rocks <= 2022
+while n_rocks <= remainder
     iterate!(chamber)
     global n_rocks = chamber.n_rocks
 end
 
-height = get_height(chamber)
-println(height)
+show(chamber)
 
-# part 2
+println(n_rocks + quotient * period_height)
+
+# 1514369502357 too high
+# 1514369500652 too low
