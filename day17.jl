@@ -1,3 +1,5 @@
+println("Day 17")
+
 mutable struct Chamber
     tower::Matrix{Char}
     const jets::Vector{Char}
@@ -5,6 +7,8 @@ mutable struct Chamber
     const rocks::Vector{Matrix{Char}}
     rock_ind::Int
     n_rocks::Int
+    rock_height::Int
+    n_reps::Int
 end
 
 
@@ -30,16 +34,19 @@ function parse_input(filepath::String)
 
     rock_ind = 1
     n_rocks = 0
+    rock_height = 0
+    n_reps = 0
 
-    return Chamber(tower, jets, jet_ind, rocks, rock_ind, n_rocks)
+    return Chamber(tower, jets, jet_ind, rocks, rock_ind, n_rocks, rock_height, n_reps)
 
 end
 
 
 function show(chamber::Chamber)
 
+    println("Reps: ", chamber.n_reps)
+    println("Rock height: ", chamber.rock_height)
     println("Next jet: ", chamber.jets[chamber.jet_ind])
-
     println("Next rock: ")
     rock = chamber.rocks[chamber.rock_ind]
 
@@ -77,6 +84,8 @@ function iterate!(chamber::Chamber)
         apply_fall!(chamber)
     end
 
+    chamber.n_reps += 1
+    return nothing
 end
 
 
@@ -94,10 +103,8 @@ function adjust_height!(chamber::Chamber)
     end
 
     n_extra_rows = 7 - n_empty_rows
-
-    for i in 1:n_extra_rows
-        chamber.tower = vcat(reshape(empty_row, 1, 9), chamber.tower)
-    end
+    extra_rows = repeat(reshape(empty_row, 1, 9), n_extra_rows, 1)
+    chamber.tower = vcat(extra_rows, chamber.tower)
 
     return nothing
 end
@@ -123,7 +130,18 @@ end
 
 function apply_jet!(chamber::Chamber)
 
-    at_locs = Tuple.(findall(x -> x == '@', chamber.tower))
+    n_relevant_rows = min(size(chamber.tower, 1), 50)
+    n2 = size(chamber.tower, 2)
+    at_locs = Tuple{Int, Int}[]
+
+    for i in 1:n_relevant_rows
+        for j in 1:n2
+            if chamber.tower[i,j] == '@'
+                push!(at_locs, (i,j))
+            end
+        end
+    end
+
     jet = chamber.jets[chamber.jet_ind]
 
     jet == '>' ? dir = 1 : dir = -1
@@ -139,44 +157,77 @@ end
 
 function apply_fall!(chamber::Chamber)
 
-    at_locs = Tuple.(findall(x -> x == '@', chamber.tower))
+    n_relevant_rows = min(size(chamber.tower, 1), 50)
+    n2 = size(chamber.tower, 2)
+    at_locs = Tuple{Int, Int}[]
+
+    for i in 1:n_relevant_rows
+        for j in 1:n2
+            if chamber.tower[i,j] == '@'
+                push!(at_locs, (i,j))
+            end
+        end
+    end
 
     if all([chamber.tower[i+1, j] in ['.', '@'] for (i, j) in at_locs])
         for loc in at_locs; chamber.tower[loc[1], loc[2]] = '.'; end
         for loc in at_locs; chamber.tower[loc[1]+1, loc[2]] = '@'; end
     else
         for loc in at_locs; chamber.tower[loc[1], loc[2]] = '#'; end
+        top_hash = minimum(loc[1] for loc in at_locs)
+        chamber.rock_height = size(chamber.tower, 1) - top_hash
     end
 
     return nothing
 end
 
 
-function get_height(chamber::Chamber)
+function equivalent(chamber1::Chamber, chamber2::Chamber)
 
-    hash_locs = Tuple.(findall(x -> x == '#', chamber.tower))
-    top_hash = minimum(loc[1] for loc in hash_locs)
-    return size(chamber.tower, 1) - top_hash
+    jets_bool =  chamber1.jets == chamber2.jets
+    jet_ind_bool = chamber1.jet_ind == chamber2.jet_ind
+    rocks_bool = chamber1.rocks == chamber2.rocks
+    rock_ind_bool = chamber1.rock_ind == chamber2.rock_ind
+
+    rock = chambers[1].rocks[chamber1.rock_ind - 1]
+    rock_width = size(rock, 2)
+
+    highest_rock_ind = minimum([loc[1] for loc in findall(x -> x == '#', chamber1.tower)])
+    highest_rocks = chamber1.tower[highest_rock_ind, :]
+    width_bool = true
+
+    for i in 1:length(highest_rocks) - rock_width + 1
+        width_bool = width_bool &&
+            highest_rocks[i:i+rock_width-1] != ['.' for _ in 1:rock_width]
+    end
+
+    tower_bool = chamber1.tower[1:highest_rock_ind,:] ==
+        chamber2.tower[1:highest_rock_ind,:]
+
+    return jets_bool && jet_ind_bool && rocks_bool &&
+        rock_ind_bool && width_bool && tower_bool
 end
 
 
 # part 1
-#chamber = parse_input("day17.txt")
-#chamber = parse_input("day17test.txt")
-#n_rocks = 0
+chamber = parse_input("day17.txt")
+n_rocks = 0
 
-#while n_rocks <= 2022
-    #iterate!(chamber)
-    #global n_rocks = chamber.n_rocks
-#end
+while n_rocks <= 2022
+    iterate!(chamber)
+    global n_rocks = chamber.n_rocks
+end
 
-#height = get_height(chamber)
-#println(height)
+println("Part 1: ", chamber.rock_height)
+
+
+
+
+
 
 # part 2
-
+total_rocks = 1000000000000
 chamber = parse_input("day17.txt")
-#chamber = parse_input("day17test.txt")
 chambers = Chamber[]
 
 for rep in 1:3e4
@@ -186,52 +237,24 @@ for rep in 1:3e4
     end
 end
 
+@assert equivalent(chambers[1], chambers[2])
 
-# Now we show that the two chambers picked are equivalent
-# in the sense that the future pattern of blocks is the same.
+init_n_rocks = chambers[1].n_rocks
+init_height = chambers[1].rock_height
 
-# First verify the basic properties
-@assert length(chambers) == 2
-@assert chambers[1].jets == chambers[2].jets
-@assert chambers[1].jet_ind == chambers[2].jet_ind
-@assert chambers[1].rocks == chambers[2].rocks
-@assert chambers[1].rock_ind == chambers[2].rock_ind
-
-# Now check the falling rock is at least four squares wide
-rock_ind = chambers[1].rock_ind
-rock = chambers[1].rocks[rock_ind - 1]
-@assert size(rock, 2) >= 4
-
-# Now check the highest solid rock has no gaps larger than three
-highest_rock_ind = minimum([loc[1] for loc in findall(x -> x == '#', chambers[1].tower)])
-highest_rocks = chambers[1].tower[highest_rock_ind, :]
-
-for i in 1:length(highest_rocks)-3
-    @assert highest_rocks[i:i+3] != ['.', '.', '.', '.']
-end
-
-# Finally check that the two chamber towers look the same up to this point
-@assert chambers[1].tower[1:highest_rock_ind,:] == chambers[2].tower[1:highest_rock_ind,:]
-
-# Get the period (in units of rocks)
 period = chambers[2].n_rocks - chambers[1].n_rocks
-quotient = div(1000000000000, period)
-remainder = 1000000000000 % period
-period_height = get_height(chambers[2]) - get_height(chambers[1])
+height_per_period = (chambers[2].rock_height - chambers[1].rock_height)
+n_periods = div(total_rocks - init_n_rocks, period)
+inter_height = height_per_period * n_periods
 
-chamber = parse_input("day17.txt")
-#chamber = parse_input("day17test.txt")
+remainder = (total_rocks - init_n_rocks) % period
+chamber = deepcopy(chambers[1])
 
 n_rocks = 0
-
 while n_rocks <= remainder
     iterate!(chamber)
-    global n_rocks = chamber.n_rocks
+    global n_rocks = chamber.n_rocks - chambers[1].n_rocks
 end
 
-show(chamber)
-
-println(n_rocks + quotient * period_height)
-
-# 1514369502357 too high
-# 1514369500652 too low
+remainder_height = chamber.rock_height - chambers[1].rock_height
+println("Part 2: ", init_height + inter_height + remainder_height)
