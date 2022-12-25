@@ -255,3 +255,4 @@ end
 
 remainder_height = chamber.rock_height - chambers[1].rock_height
 println("Part 2: ", init_height + inter_height + remainder_height)
+println()
