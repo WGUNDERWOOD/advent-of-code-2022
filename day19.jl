@@ -67,36 +67,42 @@ function collect_resources(state::State)
 end
 
 
-function check_resource(option::Char, state::State, blueprint::Blueprint, limit::Int)
+function check_resource(option::Char, state::State, blueprint::Blueprint)
 
-    if option == 'n'
-        return true
+    if (state.n_ore >= blueprint.cost_geode_bot[1]) &&
+        (state.n_obs >= blueprint.cost_geode_bot[2])
+        return option == 'g'
 
-    elseif option == 'o'
-        return state.n_ore >= blueprint.cost_ore_bot
+    else
+        if option == 'n'
+            return true
 
-    elseif option == 'c'
-        return state.n_ore >= blueprint.cost_clay_bot
+        elseif option == 'o'
+            return state.n_ore >= blueprint.cost_ore_bot
 
-    elseif option == 'b'
-        return (state.n_ore >= blueprint.cost_obs_bot[1]) &&
-            (state.n_clay >= blueprint.cost_obs_bot[2])
+        elseif option == 'c'
+            return state.n_ore >= blueprint.cost_clay_bot
 
-    elseif option == 'g'
-        return (state.n_ore >= blueprint.cost_geode_bot[1]) &&
-            (state.n_obs >= blueprint.cost_geode_bot[2])
+        elseif option == 'b'
+            return (state.n_ore >= blueprint.cost_obs_bot[1]) &&
+                (state.n_clay >= blueprint.cost_obs_bot[2])
+
+        elseif option == 'g'
+            return false
+
+        end
     end
 end
 
 
-function max_geodes(state::State, limit::Int)
+function max_possible_geodes(state::State, limit::Int)
     time_remaining = limit - state.time
     return state.n_geode +
         time_remaining * state.n_geode_bot +
         div(time_remaining * (time_remaining - 1), 2)
 end
 
-
+#=
 function check_other(option::Char, state::State, blueprint::Blueprint, limit::Int)
 
     # if can build geode bot, must do so
@@ -126,6 +132,16 @@ function check_other(option::Char, state::State, blueprint::Blueprint, limit::In
         #ore_check &&
         last_check
 end
+=#
+
+
+function decision(option::Char, state::State, blueprint::Blueprint)
+
+    new_state = collect_resources(state)
+    new_state = build_robot(option, new_state, blueprint)
+    return new_state
+end
+
 
 
 
@@ -167,59 +183,96 @@ function build_robot(option::Char, state::State, blueprint::Blueprint)
 end
 
 
-function decision(option::Char, state::State, blueprint::Blueprint)
+function get_most_geodes(blueprint::Blueprint, limit::Int)
 
-    new_state = collect_resources(state)
-    new_state = build_robot(option, new_state, blueprint)
-    return new_state
-end
-
-
-# TODO work with next bot instead
-
-
-
-
-#blueprints = parse_input("day19.txt")
-blueprints = parse_input("day19test.txt")
-options = ['n', 'o', 'c', 'b', 'g']
-limit = 20
-most_geodes::Int = 0
-first_geode::Int = limit + 1
-
-#for blueprint in blueprints[1:1]
-
-    blueprint = blueprints[2]
+    most_geodes::Int = 0
+    most_geodes_time = Int[0 for _ in 1:limit]
     checking = State[State(0, 0, 0, 0, 0, 1, 0, 0, 0)]
     checked = State[]
 
+    max_required_ore = blueprint.cost_ore_bot + blueprint.cost_clay_bot +
+        blueprint.cost_obs_bot[1] + blueprint.cost_geode_bot[1]
+    max_required_clay = blueprint.cost_obs_bot[2]
+    max_required_obs = blueprint.cost_geode_bot[2]
+
     while length(checking) > 0
+
         state = pop!(checking)
-        if max_geodes(state, limit) > most_geodes
 
-            for option in options
-                if check_resource(option, state, blueprint, limit) &&
-                    check_other(option, state, blueprint, limit)
 
-                    new_state = decision(option, state, blueprint)
-                    global most_geodes = max(most_geodes, new_state.n_geode)
-                    #println(most_geodes)
+        for option in ['n', 'o', 'c', 'b', 'g']
+
+            if check_resource(option, state, blueprint)
+
+                new_state = decision(option, state, blueprint)
+                time = new_state.time
+
+                if (max_possible_geodes(new_state, limit) > most_geodes) &&
+                    (new_state.n_geode >= most_geodes_time[time]) &&
+                    (new_state.n_obs_bot <= max_required_obs) &&
+                    (new_state.n_clay_bot <= max_required_clay) &&
+                    (new_state.n_ore_bot <= max_required_ore)
+
                     if new_state.time < limit
                         push!(checking, new_state)
                     else
                         push!(checked, new_state)
                     end
+
+                    most_geodes = max(most_geodes, new_state.n_geode)
+                    most_geodes_time[time] = max(most_geodes_time[time], new_state.n_geode)
                 end
             end
         end
     end
 
+    return most_geodes
+end
+
+
+
+
+
+
+blueprints = parse_input("day19.txt")
+#blueprints = parse_input("day19test.txt")
+limit = 24
+
+most_geodes_list = Int[]
+
+# TODO parallel?
+for blueprint in blueprints
+    most_geodes = get_most_geodes(blueprint, limit)
+    push!(most_geodes_list, most_geodes)
+    println(most_geodes)
+end
+
+println(sum(blueprints[i].id * most_geodes_list[i] for i in eachindex(blueprints)))
+
+
+
+        # check new state is valid
+        #if max_geodes(state, limit) > best_max_geodes
+            #new_state.n_geode >= best_time_geodes[new_state.time] &&
+
+            # where to put new state
+            #if new_state.time < limit
+                #push!(checking, new_state)
+            #else
+                #push!(checked, new_state)
+            #end
+
+            # update running maxima
+            #global best_max_geodes = new_state.n_geode
+            #global best_time_geodes[new_state.time] =
+                #max(best_time_geodes[new_state.time], new_state.n_geode)
+        #end
+
+
     #push!(most_geodes, maximum(state.n_geode for state in checked))
     #display(most_geodes)
 
 #end
-most_geodes
 
-#println(sum(blueprints[i].id * most_geodes[i] for i in eachindex(blueprints)))
 #show.(checking)
 #show.(checked)
