@@ -67,28 +67,44 @@ function collect_resources(state::State)
 end
 
 
-function check_resources(option::Char, state::State, blueprint::Blueprint)
+function check_valid(option::Char, state::State, blueprint::Blueprint)
 
+    # need enough resources
     if option == 'n'
-        return true
+        resource_check = true
 
     elseif option == 'o'
-        return state.n_ore >= blueprint.cost_ore_bot
+        resource_check = (state.n_ore >= blueprint.cost_ore_bot)
 
     elseif option == 'c'
-        return state.n_ore >= blueprint.cost_clay_bot
+        resource_check = (state.n_ore >= blueprint.cost_clay_bot)
 
     elseif option == 'b'
-        return (state.n_ore >= blueprint.cost_obs_bot[1]) &&
+        resource_check = (state.n_ore >= blueprint.cost_obs_bot[1]) &&
             (state.n_clay >= blueprint.cost_obs_bot[2])
 
     elseif option == 'g'
-        return (state.n_ore >= blueprint.cost_geode_bot[1]) &&
+        resource_check = (state.n_ore >= blueprint.cost_geode_bot[1]) &&
             (state.n_obs >= blueprint.cost_geode_bot[2])
-
-    else
-        error("invalid option")
     end
+
+    # if can build geode bot, must do so
+    if option != 'g' &&
+        (state.n_ore >= blueprint.cost_geode_bot[1]) &&
+        (state.n_obs >= blueprint.cost_geode_bot[2])
+        geode_check = false
+    else
+        geode_check = true
+    end
+
+    # don't buy ore bots after certain time
+    if option == 'o' && (state.time >= 10)
+        ore_check = false
+    else
+        ore_check = true
+    end
+
+    return resource_check && geode_check && ore_check
 end
 
 
@@ -123,9 +139,6 @@ function build_robot(option::Char, state::State, blueprint::Blueprint)
         new_n_ore -= blueprint.cost_geode_bot[1]
         new_n_obs -= blueprint.cost_geode_bot[2]
         new_n_geode_bot += 1
-
-    else
-        error("invalid option")
     end
 
     return State(state.time, new_n_ore, new_n_clay, new_n_obs, new_n_geode,
@@ -143,23 +156,32 @@ end
 
 
 
-# check resources available
-# collect_resources and increment time
-# build robot
-
 
 
 #parse_input("day19.txt")
 blueprints = parse_input("day19test.txt")
-blueprint = blueprints[1]
-state = State(0, 0, 0, 0, 0, 1, 0, 0, 0)
-show(state)
+blueprint = blueprints[2]
+checking = State[State(0, 0, 0, 0, 0, 1, 0, 0, 0)]
+checked = State[]
+options = ['n', 'o', 'c', 'b', 'g']
+limit = 24
 
-options = ['n', 'n', 'c', 'n', 'c', 'n', 'c', 'n', 'n', 'n', 'b', 'c', 'n',
-           'n', 'b', 'n', 'n', 'g', 'n', 'n', 'g', 'n', 'n', 'n']
-
-for option in options
-    @assert check_resources(option, state, blueprint)
-    global state = decision(option, state, blueprint)
-    show(state)
+while length(checking) > 0
+    state = pop!(checking)
+    for option in options
+        if check_valid(option, state, blueprint)
+            new_state = decision(option, state, blueprint)
+            if new_state.time < limit
+                if (new_state.time <= limit-4) || (new_state.n_geode >= 1)
+                    push!(checking, new_state)
+                end
+            else
+                push!(checked, new_state)
+            end
+        end
+    end
+    #println(length(checked))
 end
+
+#show.(checking)
+#show.(checked)
