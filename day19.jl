@@ -190,8 +190,8 @@ function get_most_geodes(blueprint::Blueprint, limit::Int)
     checking = State[State(0, 0, 0, 0, 0, 1, 0, 0, 0)]
     checked = State[]
 
-    max_required_ore = blueprint.cost_ore_bot + blueprint.cost_clay_bot +
-        blueprint.cost_obs_bot[1] + blueprint.cost_geode_bot[1]
+    max_required_ore = max(blueprint.cost_ore_bot, blueprint.cost_clay_bot,
+                           blueprint.cost_obs_bot[1], blueprint.cost_geode_bot[1])
     max_required_clay = blueprint.cost_obs_bot[2]
     max_required_obs = blueprint.cost_geode_bot[2]
 
@@ -208,7 +208,6 @@ function get_most_geodes(blueprint::Blueprint, limit::Int)
                 time = new_state.time
 
                 if (max_possible_geodes(new_state, limit) > most_geodes) &&
-                    (new_state.n_geode >= most_geodes_time[time]) &&
                     (new_state.n_obs_bot <= max_required_obs) &&
                     (new_state.n_clay_bot <= max_required_clay) &&
                     (new_state.n_ore_bot <= max_required_ore)
@@ -220,7 +219,6 @@ function get_most_geodes(blueprint::Blueprint, limit::Int)
                     end
 
                     most_geodes = max(most_geodes, new_state.n_geode)
-                    most_geodes_time[time] = max(most_geodes_time[time], new_state.n_geode)
                 end
             end
         end
@@ -230,49 +228,36 @@ function get_most_geodes(blueprint::Blueprint, limit::Int)
 end
 
 
-
-
-
-
 blueprints = parse_input("day19.txt")
 #blueprints = parse_input("day19test.txt")
+
+# part 1
 limit = 24
+most_geodes_list = Int[0 for _ in 1:length(blueprints)]
 
-most_geodes_list = Int[]
-
-# TODO parallel?
-for blueprint in blueprints
+Threads.@threads for i in 1:length(blueprints)
+    blueprint = blueprints[i]
     most_geodes = get_most_geodes(blueprint, limit)
-    push!(most_geodes_list, most_geodes)
+    most_geodes_list[i] = most_geodes
     println(most_geodes)
 end
 
+# 3, 1, 0, 0, 9, 0, 6, 2, 6, 4, 2, 0, 0, 1, 0, 3, 0,
+# 3, 0, 2, 3, 3, 8, 1, 16, 0, 5, 7, 3, 1
+
 println(sum(blueprints[i].id * most_geodes_list[i] for i in eachindex(blueprints)))
 
+# part 2
+limit = 32
+most_geodes_list = Int[0 for _ in 1:3]
 
+Threads.@threads for i in 1:3
+    blueprint = blueprints[i]
+    most_geodes = get_most_geodes(blueprint, limit)
+    most_geodes_list[i] = most_geodes
+    println(most_geodes)
+end
 
-        # check new state is valid
-        #if max_geodes(state, limit) > best_max_geodes
-            #new_state.n_geode >= best_time_geodes[new_state.time] &&
+# 29, 23, 16
 
-            # where to put new state
-            #if new_state.time < limit
-                #push!(checking, new_state)
-            #else
-                #push!(checked, new_state)
-            #end
-
-            # update running maxima
-            #global best_max_geodes = new_state.n_geode
-            #global best_time_geodes[new_state.time] =
-                #max(best_time_geodes[new_state.time], new_state.n_geode)
-        #end
-
-
-    #push!(most_geodes, maximum(state.n_geode for state in checked))
-    #display(most_geodes)
-
-#end
-
-#show.(checking)
-#show.(checked)
+println(prod(most_geodes_list))

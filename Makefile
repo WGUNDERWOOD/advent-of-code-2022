@@ -1,4 +1,4 @@
 all:
 	@for f in day??.jl; do \
-		julia $$f; \
+		julia -t 8 $$f; \
 	done
