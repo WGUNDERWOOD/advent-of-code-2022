@@ -1,5 +1,8 @@
 println("Day 22")
 
+Board = Matrix{Char}
+Path = Vector{Union{Int, Char}}
+
 mutable struct State
     i::Int
     j::Int
@@ -11,14 +14,14 @@ end
 function parse_input(filepath::String)
 
     file = readlines(filepath)
-    n = length(file) - 2
-    m = maximum(length(file[i]) for i in 1:n)
-    board = Matrix{Char}(undef, n, m)
-    path = Union{Int, Char}[]
+    m = length(file) - 2
+    n = maximum(length(file[i]) for i in 1:m)
+    board = Board(undef, m, n)
+    path = Path()
 
-    for i in 1:n
+    for i in 1:m
         l = file[i]
-        for j in 1:m
+        for j in 1:n
             if j <= length(l)
                 board[i, j] = l[j]
             else
@@ -55,4 +58,24 @@ function parse_input(filepath::String)
 end
 
 
+function move(i::Int, j::Int, dir::Char, board::Board)
+
+    (m, n) = size(board)
+
+    if dir == 'R'
+        if j <= n-1
+            if board[i, j] == '.'
+
+        end
+    end
+
+end
+
+
+function iterate(state::State, board::Board, path::Path)
+end
+
+
 (state, board, path) = parse_input("day22test.txt")
+
+state = iterate(state, board, path)
