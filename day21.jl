@@ -115,3 +115,4 @@ elseif arrow(hi) == target
 end
 
 println("Part 2: ", answer)
+println()
