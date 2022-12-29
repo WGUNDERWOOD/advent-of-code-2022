@@ -174,26 +174,153 @@ function password(state::State, board::Board)
 end
 
 
-#(state, board, path) = parse_input("day22test.txt")
-(state, board, path) = parse_input("day22.txt")
-#show(state, board, path)
+mutable struct Face
+    id::Int
+    start::Tuple{Int, Int}
+    side_len::Int
+    R::Union{Int, Nothing}
+    L::Union{Int, Nothing}
+    D::Union{Int, Nothing}
+    U::Union{Int, Nothing}
+end
 
+
+Net = Dict{Int, Face}
+
+
+function get_net(board::Board)
+
+    (m, n) = size(board)
+    side_len = minimum(sum(board[i,:] .!= ' ') for i in 1:m)
+    (m_net, n_net) = (div(m, side_len), div(n, side_len))
+    net = Net()
+    id = 1
+
+    for r in 1:m_net
+        for s in 1:n_net
+            (i, j) = ((r-1) * side_len + 1, (s-1) * side_len + 1)
+            if board[i, j] != ' '
+                face = Face(id, (i, j), side_len, nothing, nothing, nothing, nothing)
+                push!(net, id => face)
+                id += 1
+            end
+        end
+    end
+
+    for id in keys(net)
+
+        face = net[id]
+
+        # D
+        new_start = face.start[1] + face.side_len
+        if (new_start <= m) && (board[new_start, face.start[2]] != ' ')
+            new_id = [f.id for f in values(net) if f.start == (new_start, face.start[2])][]
+            face.D = new_id
+        end
+
+        # U
+        new_start = face.start[1] - face.side_len
+        if (new_start >= 1) && (board[new_start, face.start[2]] != ' ')
+            new_id = [f.id for f in values(net) if f.start == (new_start, face.start[2])][]
+            face.U = new_id
+        end
+
+        # R
+        new_start = face.start[2] + face.side_len
+        if (new_start <= m) && (board[face.start[1], new_start] != ' ')
+            new_id = [f.id for f in values(net) if f.start == (face.start[1], new_start)][]
+            face.R = new_id
+        end
+
+        # L
+        new_start = face.start[2] - face.side_len
+        if (new_start >= 1) && (board[face.start[1], new_start] != ' ')
+            new_id = [f.id for f in values(net) if f.start == (face.start[1], new_start)][]
+            face.L = new_id
+        end
+    end
+
+    return net
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#=
+function cube_move(i::Int, j::Int, dir::Char, board::Board)
+
+    (m, n) = size(board)
+    new_i = i
+    new_j = j
+
+    if dir == 'R'
+        if (j <= n-1) && (board[i, j+1] == '.')
+            new_j = j+1
+        elseif ((j <= n-1) && (board[i, j+1] == ' ')) || (j == n)
+            wrap = findfirst(x -> x != ' ', board[i, :])
+            board[i, wrap] == '.' ? new_j = wrap : nothing
+        end
+    end
+
+    return (new_i, new_j)
+end
+
+
+function cube_iterate!(state::State, board::Board, path::Path)
+
+    instruction = path[state.loc]
+
+    if isa(instruction, Char)
+        state.dir = turn(instruction, state.dir)
+    else
+        for _ in 1:instruction
+            (state.i, state.j) = cube_move(state.i, state.j, state.dir, board)
+        end
+    end
+
+    state.loc += 1
+    return nothing
+end
+=#
+
+
+
+
+(state, board, path) = parse_input("day22test.txt")
+#(state, board, path) = parse_input("day22.txt")
+
+#=
+# part 1
 for rep in 1:length(path)
     iterate!(state, board, path)
-    #if isa(path[state.loc], Int)
-        #println(state.dir)
-        #println(path[state.loc])
-        #println(state.i, ", ", state.j)
-        #show(state, board, path)
-        #println()
-    #end
-    #show(state, board, path)
-    #sleep(0.4)
 end
 
 println(password(state, board))
+=#
 
-# 3512 too low
 
+# part 2
+
+#for rep in 1:length(path)
+    #cube_iterate!(state, board, path)
+#end
+
+net = get_net(board)
+display(net)
+
+
+#println(password(state, board))
 
 println()
