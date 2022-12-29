@@ -1,63 +1,47 @@
-#println("Day 22")
+println("Day 22")
 
-Board = Matrix{Char}
+# part 1
+
+Point2 = Tuple{Int, Int}
 Path = Vector{Union{Int, Char}}
+Flat = Matrix{Char}
 
-mutable struct State
-    i::Int
-    j::Int
+
+mutable struct FlatState
+    loc::Point2
     dir::Char
-    loc::Int
+    pos::Int
 end
 
 
-function show(state::State, board::Board, path::Path)
-
-    (m, n) = size(board)
-
-    for i in 1:m
-        for j in 1:n
-            if (i, j) == (state.i, state.j)
-                if state.dir == 'R'
-                    print('>')
-                elseif state.dir == 'L'
-                    print('<')
-                elseif state.dir == 'U'
-                    print('^')
-                elseif state.dir == 'D'
-                    print('v')
-                end
-            else
-                print(board[i,j])
-            end
-        end
-        println()
-    end
-    println()
-end
-
-
-function parse_input(filepath::String)
+function parse_flat(filepath::String)
 
     file = readlines(filepath)
     m = length(file) - 2
     n = maximum(length(file[i]) for i in 1:m)
-    board = Board(undef, m, n)
-    path = Path()
+    flat = Flat(undef, m, n)
 
     for i in 1:m
         l = file[i]
         for j in 1:n
             if j <= length(l)
-                board[i, j] = l[j]
+                flat[i, j] = l[j]
             else
-                board[i, j] = ' '
+                flat[i, j] = ' '
             end
         end
     end
 
+    return flat
+end
+
+
+function parse_path(filepath::String)
+
+    file = readlines(filepath)
     type = "Int"
     cur = ""
+    path = Path()
 
     for c in file[end]
         if (type == "Int") && (c in '0':'9')
@@ -78,51 +62,57 @@ function parse_input(filepath::String)
         push!(path, cur)
     end
 
-    i = 1
-    j = findfirst(x -> x != ' ', board[i, :])
-
-    state = State(i, j, 'R', 1)
-
-    return (state, board, path)
+    return path
 end
 
 
-function move(i::Int, j::Int, dir::Char, board::Board)
+function get_initial_state(flat::Flat)
 
-    (m, n) = size(board)
-    new_i = i
-    new_j = j
+    i = 1
+    j = findfirst(x -> x != ' ', flat[i, :])
+
+    state = State((i, j), 'R', 1)
+
+    return state
+end
+
+
+function move_flat(pos::Point2, dir::Char, flat::Flat)
+
+    (m, n) = size(flat)
+    (i, j) = pos
+    (new_i, new_j) = pos
 
     if dir == 'R'
-        if (j <= n-1) && (board[i, j+1] == '.')
+        if (j <= n-1) && (flat[i, j+1] == '.')
             new_j = j+1
-        elseif ((j <= n-1) && (board[i, j+1] == ' ')) || (j == n)
-            wrap = findfirst(x -> x != ' ', board[i, :])
-            board[i, wrap] == '.' ? new_j = wrap : nothing
+        elseif ((j <= n-1) && (flat[i, j+1] == ' ')) || (j == n)
+            wrap = findfirst(x -> x != ' ', flat[i, :])
+            flat[i, wrap] == '.' ? new_j = wrap : nothing
         end
 
     elseif dir == 'L'
-        if (j >= 2) && (board[i, j-1] == '.')
+        if (j >= 2) && (flat[i, j-1] == '.')
             new_j = j-1
-        elseif ((j >= 2) && (board[i, j-1] == ' ')) || (j == 1)
-            wrap = findlast(x -> x != ' ', board[i, :])
-            board[i, wrap] == '.' ? new_j = wrap : nothing
+        elseif ((j >= 2) && (flat[i, j-1] == ' ')) || (j == 1)
+            wrap = findlast(x -> x != ' ', flat[i, :])
+            flat[i, wrap] == '.' ? new_j = wrap : nothing
         end
 
     elseif dir == 'D'
-        if (i <= m-1) && (board[i+1, j] == '.')
+        if (i <= m-1) && (flat[i+1, j] == '.')
             new_i = i+1
-        elseif ((i <= m-1) && (board[i+1, j] == ' ')) || (i == m)
-            wrap = findfirst(x -> x != ' ', board[:, j])
-            board[wrap, j] == '.' ? new_i = wrap : nothing
+        elseif ((i <= m-1) && (flat[i+1, j] == ' ')) || (i == m)
+            wrap = findfirst(x -> x != ' ', flat[:, j])
+            flat[wrap, j] == '.' ? new_i = wrap : nothing
         end
 
     elseif dir == 'U'
-        if (i >= 2) && (board[i-1, j] == '.')
+        if (i >= 2) && (flat[i-1, j] == '.')
             new_i = i-1
-        elseif ((i >= 2) && (board[i-1, j] == ' ')) || (i == 1)
-            wrap = findlast(x -> x != ' ', board[:, j])
-            board[wrap, j] == '.' ? new_i = wrap : nothing
+        elseif ((i >= 2) && (flat[i-1, j] == ' ')) || (i == 1)
+            wrap = findlast(x -> x != ' ', flat[:, j])
+            flat[wrap, j] == '.' ? new_i = wrap : nothing
         end
     end
 
@@ -148,29 +138,29 @@ function turn(instruction::Char, dir::Char)
 end
 
 
-function iterate!(state::State, board::Board, path::Path)
+function iterate_flat!(state::State, flat::Flat, path::Path)
 
-    instruction = path[state.loc]
+    instruction = path[state.pos]
 
     if isa(instruction, Char)
         state.dir = turn(instruction, state.dir)
     else
         for _ in 1:instruction
-            (state.i, state.j) = move(state.i, state.j, state.dir, board)
+            (state.i, state.j) = move_flat((state.i, state.j), state.dir, flat)
         end
     end
 
-    state.loc += 1
+    state.pos += 1
     return nothing
 end
 
 
-function password(state::State, board::Board)
+function password_flat(state::State)
     state.dir == 'R' ? facing = 0 : nothing
     state.dir == 'D' ? facing = 1 : nothing
     state.dir == 'L' ? facing = 2 : nothing
     state.dir == 'U' ? facing = 3 : nothing
-    return 1000 * state.i + 4 * state.j + facing
+    return 1000 * state.pos[1] + 4 * state.pos[2] + facing
 end
 
 
@@ -178,14 +168,28 @@ mutable struct Face
     id::Int
     start::Tuple{Int, Int}
     side_len::Int
-    R::Union{Int, Nothing}
-    L::Union{Int, Nothing}
-    D::Union{Int, Nothing}
-    U::Union{Int, Nothing}
+    neighbors::Dict{Char, Union{Int, Nothing}}
 end
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Net = Dict{Int, Face}
+Point3 = Tuple{Int, Int, Int}
 
 
 function get_net(board::Board)
@@ -200,7 +204,9 @@ function get_net(board::Board)
         for s in 1:n_net
             (i, j) = ((r-1) * side_len + 1, (s-1) * side_len + 1)
             if board[i, j] != ' '
-                face = Face(id, (i, j), side_len, nothing, nothing, nothing, nothing)
+                neighbors = Dict('D' => nothing, 'U' => nothing,
+                    'R' => nothing, 'L' => nothing)
+                face = Face(id, (i, j), side_len, neighbors)
                 push!(net, id => face)
                 id += 1
             end
@@ -215,32 +221,45 @@ function get_net(board::Board)
         new_start = face.start[1] + face.side_len
         if (new_start <= m) && (board[new_start, face.start[2]] != ' ')
             new_id = [f.id for f in values(net) if f.start == (new_start, face.start[2])][]
-            face.D = new_id
+            face.neighbors['D'] = new_id
         end
 
         # U
         new_start = face.start[1] - face.side_len
         if (new_start >= 1) && (board[new_start, face.start[2]] != ' ')
             new_id = [f.id for f in values(net) if f.start == (new_start, face.start[2])][]
-            face.U = new_id
+            face.neighbors['U'] = new_id
         end
 
         # R
         new_start = face.start[2] + face.side_len
         if (new_start <= m) && (board[face.start[1], new_start] != ' ')
             new_id = [f.id for f in values(net) if f.start == (face.start[1], new_start)][]
-            face.R = new_id
+            face.neighbors['R'] = new_id
         end
 
         # L
         new_start = face.start[2] - face.side_len
         if (new_start >= 1) && (board[face.start[1], new_start] != ' ')
             new_id = [f.id for f in values(net) if f.start == (face.start[1], new_start)][]
-            face.L = new_id
+            face.neighbors['L'] = new_id
         end
     end
 
     return net
+end
+
+
+function go_over_edge(id::Int, edge::Char, net::Net)
+
+    face = net[id]
+
+    if !isnothing(face.neighbors[edge])
+        println(face)
+        return (face.neighbors[edge], edge, true)
+    end
+
+
 end
 
 
@@ -324,3 +343,5 @@ display(net)
 #println(password(state, board))
 
 println()
+
+=#
