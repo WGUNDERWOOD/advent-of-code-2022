@@ -166,7 +166,6 @@ end
 # part 2
 
 Point3 = Tuple{Int, Int, Int}
-Orientation = Tuple{Point3, Point3, Point3, Point3}
 
 mutable struct CubeState
     id::Int
@@ -179,11 +178,11 @@ end
 mutable struct Face
     id::Int
     board::Matrix{Char}
-    orientation::Orientation
+    face_coords::Matrix{Int}
 end
 
 Cube = Dict{Int, Face}
-Net = Matrix{Bool}
+Net = Matrix{Int}
 
 
 function parse_net(filepath::String)
@@ -193,13 +192,15 @@ function parse_net(filepath::String)
     side_len = minimum(sum(flat[i,:] .!= ' ') for i in 1:m)
     (m_net, n_net) = (div(m, side_len), div(n, side_len))
     net = Net(undef, m_net, n_net)
+    id = 1
 
     for r in 1:m_net, s in 1:n_net
         (i, j) = ((r-1) * side_len + 1, (s-1) * side_len + 1)
         if flat[i, j] != ' '
-            net[r, s] = true
+            net[r, s] = id
+            id += 1
         else
-            net[r, s] = false
+            net[r, s] = 0
         end
     end
 
@@ -207,45 +208,48 @@ function parse_net(filepath::String)
 end
 
 
-function get_all_orientations(net::Net)
+function get_all_face_coords(net::Net)
 
     (m_net, n_net) = size(net)
-    all_orientations = Matrix{Union{Orientation, Nothing}}(nothing, m_net, n_net)
+    all_face_coords = Matrix{Union{Matrix{Int}, Nothing}}(nothing, m_net, n_net)
 
-    # orientation of first face
-    first_orientation = ((-1,1,1), (1,1,1), (-1,-1,1), (1,-1,1))
-    all_orientations[1, findfirst(net[1, :])] = first_orientation
+    # face_coords of first face
+    first_face_coords = [-1 1 -1 1; 1 1 -1 -1; 1 1 1 1]
+    all_face_coords[1, findfirst(net[1, :] .> 0)] = first_face_coords
 
-    # orientation of other faces
+    # face_coords of other faces
     for rep in 1:6
         for r in 1:m_net, s in 1:n_net
-            if net[r,s] && !isnothing(all_orientations[r,s])
+            if (net[r,s] > 0) && !isnothing(all_face_coords[r,s])
 
-                if (r < m_net) && net[r+1, s] && isnothing(all_orientations[r+1, s])
-                    all_orientations[r+1, s] = rotate.(all_orientations[r,s], 'D')
+                if (r < m_net) && (net[r+1, s] > 0) && isnothing(all_face_coords[r+1, s])
+                    all_face_coords[r+1, s] = rotate(all_face_coords[r,s], 'D')
                 end
 
-                if (r > 1) && net[r-1, s] && isnothing(all_orientations[r-1, s])
-                    all_orientations[r-1, s] = rotate.(all_orientations[r,s], 'U')
+                if (r > 1) && (net[r-1, s] > 0) && isnothing(all_face_coords[r-1, s])
+                    all_face_coords[r-1, s] = rotate(all_face_coords[r,s], 'U')
                 end
 
-                if (s < n_net) && net[r, s+1] && isnothing(all_orientations[r, s+1])
-                    all_orientations[r, s+1] = rotate.(all_orientations[r,s], 'R')
+                if (s < n_net) && (net[r, s+1] > 0) && isnothing(all_face_coords[r, s+1])
+                    all_face_coords[r, s+1] = rotate(all_face_coords[r,s], 'R')
                 end
 
-                if (s > 1) && net[r, s-1] && isnothing(all_orientations[r, s-1])
-                    all_orientations[r, s-1] = rotate.(all_orientations[r,s], 'L')
+                if (s > 1) && (net[r, s-1] > 0) && isnothing(all_face_coords[r, s-1])
+                    all_face_coords[r, s-1] = rotate(all_face_coords[r,s], 'L')
                 end
 
             end
         end
     end
 
-    return all_orientations
+    return all_face_coords
 end
 
 
-function rotate(point::Point3, dir::Char)
+function rotate(face_coords::Matrix{Int}, dir::Char)
+
+    first_face_coords = [-1 1 -1 1; 1 1 -1 -1; 1 1 1 1]
+    A_face = face_coords[:,1:3] * inv(first_face_coords[:,1:3])
 
     if dir == 'D'
         A = [1 0 0; 0 0 -1; 0 1 0]
@@ -257,29 +261,28 @@ function rotate(point::Point3, dir::Char)
         A = [0 0 -1; 0 1 0; 1 0 0]
     end
 
-    return Tuple(A * [i for i in point])
+    return A_face * A * first_face_coords
 end
 
 
 function parse_cube(filepath::String)
 
     net = parse_net(filepath)
-    all_orientations = get_all_orientations(net)
+    all_face_coords = get_all_face_coords(net)
     flat = parse_flat(filepath)
     (m, n) = size(flat)
     side_len = minimum(sum(flat[i,:] .!= ' ') for i in 1:m)
     (m_net, n_net) = (div(m, side_len), div(n, side_len))
-    id = 1
     cube = Cube()
 
     for r in 1:m_net, s in 1:n_net
-        if net[r, s]
+        if net[r, s] > 0
             (i, j) = ((r-1) * side_len + 1, (s-1) * side_len + 1)
+            id = net[r, s]
             board = flat[i:i+side_len-1, j:j+side_len-1]
-            orientation = all_orientations[r, s]
-            face = Face(id, board, orientation)
+            face_coords = all_face_coords[r, s]
+            face = Face(id, board, face_coords)
             cube[id] = face
-            id += 1
         end
     end
 
@@ -295,6 +298,41 @@ function get_initial_state(cube::Cube)
     loc = (i, j)
     state = CubeState(id, (i, j), 'R', 1)
     return state
+end
+
+
+function iscolsubset(A1::Matrix{Int}, A2::Matrix{Int})
+
+    n_cols = size(A1, 2)
+    good_cols = [false for _ in 1:n_cols]
+
+    for i in 1:n_cols
+        col = A1[:,i]
+        for j in 1:size(A2, 2)
+            if col == A2[:,j]
+                good_cols[i] = true
+            end
+        end
+    end
+
+    return all(good_cols)
+end
+
+
+function move_over_edge(state::CubeState, cube::Cube)
+
+    face = cube[state.id]
+
+    # get edge coords
+    state.dir == 'U' ? edge_coords = face.face_coords[:,[1,2]] : nothing
+    state.dir == 'R' ? edge_coords = face.face_coords[:,[2,4]] : nothing
+    state.dir == 'D' ? edge_coords = face.face_coords[:,[3,4]] : nothing
+    state.dir == 'L' ? edge_coords = face.face_coords[:,[1,3]] : nothing
+
+    # find new face
+    new_face = [f for f in values(cube) if iscolsubset(edge_coords, f.face_coords) && f != face][]
+
+
 end
 
 
@@ -321,7 +359,8 @@ println(password_flat(state))
 # part 2
 
 net = parse_net(filepath)
-all_orientations = get_all_orientations(net)
+all_face_coords = get_all_face_coords(net)
 cube = parse_cube(filepath)
 path = parse_path(filepath)
 state = get_initial_state(cube)
+move_over_edge(state, cube)
