@@ -76,11 +76,11 @@ function get_initial_state(flat::Flat)
 end
 
 
-function move_flat(pos::Point2, dir::Char, flat::Flat)
+function move_flat(loc::Point2, dir::Char, flat::Flat)
 
     (m, n) = size(flat)
-    (i, j) = pos
-    (new_i, new_j) = pos
+    (i, j) = loc
+    (new_i, new_j) = loc
 
     if dir == 'R'
         if (j <= n-1) && (flat[i, j+1] == '.')
@@ -179,6 +179,7 @@ mutable struct Face
     id::Int
     board::Matrix{Char}
     face_coords::Matrix{Int}
+    corner_loc::Point2
 end
 
 Cube = Dict{Int, Face}
@@ -281,7 +282,7 @@ function parse_cube(filepath::String)
             id = net[r, s]
             board = flat[i:i+side_len-1, j:j+side_len-1]
             face_coords = all_face_coords[r, s]
-            face = Face(id, board, face_coords)
+            face = Face(id, board, face_coords, (i,j))
             cube[id] = face
         end
     end
@@ -322,19 +323,130 @@ end
 function move_over_edge(state::CubeState, cube::Cube)
 
     face = cube[state.id]
+    face_coords = face.face_coords
+    faces = values(cube)
+    dir = state.dir
 
     # get edge coords
-    state.dir == 'U' ? edge_coords = face.face_coords[:,[1,2]] : nothing
-    state.dir == 'R' ? edge_coords = face.face_coords[:,[2,4]] : nothing
-    state.dir == 'D' ? edge_coords = face.face_coords[:,[3,4]] : nothing
-    state.dir == 'L' ? edge_coords = face.face_coords[:,[1,3]] : nothing
+    dir == 'U' ? edge_coords = face_coords[:,[1,2]] : nothing
+    dir == 'R' ? edge_coords = face_coords[:,[2,4]] : nothing
+    dir == 'D' ? edge_coords = face_coords[:,[3,4]] : nothing
+    dir == 'L' ? edge_coords = face_coords[:,[1,3]] : nothing
 
     # find new face
-    new_face = [f for f in values(cube) if iscolsubset(edge_coords, f.face_coords) && f != face][]
+    new_face = [f for f in faces if iscolsubset(edge_coords, f.face_coords) && f != face][]
 
+    # find edge on new face
+    edge_coords == new_face.face_coords[:, [1,2]] ? new_edge = 'U' : nothing
+    edge_coords == new_face.face_coords[:, [2,1]] ? new_edge = 'U' : nothing
+    edge_coords == new_face.face_coords[:, [2,4]] ? new_edge = 'R' : nothing
+    edge_coords == new_face.face_coords[:, [4,2]] ? new_edge = 'R' : nothing
+    edge_coords == new_face.face_coords[:, [3,4]] ? new_edge = 'D' : nothing
+    edge_coords == new_face.face_coords[:, [4,3]] ? new_edge = 'D' : nothing
+    edge_coords == new_face.face_coords[:, [1,3]] ? new_edge = 'L' : nothing
+    edge_coords == new_face.face_coords[:, [3,1]] ? new_edge = 'L' : nothing
 
+    # get loc on new face
+    side_len = size(face.board, 1)
+    (i, j) = state.loc
+
+    if dir == 'R'
+        new_edge == 'L' ? new_loc = (i, 1) : nothing
+        new_edge == 'R' ? new_loc = (side_len - i + 1, side_len) : nothing
+        new_edge == 'D' ? new_loc = (side_len, i) : nothing
+        new_edge == 'U' ? new_loc = (1, side_len - i + 1) : nothing
+    elseif dir == 'L'
+        new_edge == 'L' ? new_loc = (side_len - i + 1, 1) : nothing
+        new_edge == 'R' ? new_loc = (i, side_len) : nothing
+        new_edge == 'D' ? new_loc = (side_len, side_len - i + 1) : nothing
+        new_edge == 'U' ? new_loc = (1, i) : nothing
+    elseif dir == 'D'
+        new_edge == 'L' ? new_loc = (side_len - j + 1, 1) : nothing
+        new_edge == 'R' ? new_loc = (j, side_len) : nothing
+        new_edge == 'D' ? new_loc = (side_len, side_len - j + 1) : nothing
+        new_edge == 'U' ? new_loc = (1, j) : nothing
+    elseif dir == 'U'
+        new_edge == 'L' ? new_loc = (j, 1) : nothing
+        new_edge == 'R' ? new_loc = (side_len - j + 1, side_len) : nothing
+        new_edge == 'D' ? new_loc = (side_len, j) : nothing
+        new_edge == 'U' ? new_loc = (1, side_len - j + 1) : nothing
+    end
+
+    # get new direction
+    new_edge == 'L' ? new_dir = 'R' : nothing
+    new_edge == 'R' ? new_dir = 'L' : nothing
+    new_edge == 'U' ? new_dir = 'D' : nothing
+    new_edge == 'D' ? new_dir = 'U' : nothing
+
+    return (new_face.id, new_loc, new_dir)
 end
 
+
+function move_cube(state::CubeState, cube::Cube)
+
+    face = cube[state.id]
+    board = face.board
+    side_len = size(board, 1)
+    dir = state.dir
+    (i, j) = state.loc
+    new_id = state.id
+    new_loc = state.loc
+    new_dir = state.dir
+
+    if dir == 'R'
+        (j < side_len) && (board[i, j+1] == '.') ? new_loc = (i, j+1) : nothing
+        j == side_len ? (new_id, new_loc, new_dir) = move_over_edge(state, cube) : nothing
+
+    elseif dir == 'L'
+        (j > 1) && (board[i, j-1] == '.') ? new_loc = (i, j-1) : nothing
+        j == 1 ? (new_id, new_loc, new_dir) = move_over_edge(state, cube) : nothing
+
+    elseif dir == 'D'
+        (i < side_len) && (board[i+1, j] == '.') ? new_loc = (i+1, j) : nothing
+        i == side_len ? (new_id, new_loc, new_dir) = move_over_edge(state, cube) : nothing
+
+    elseif dir == 'U'
+        (i > 1) && (board[i-1, j] == '.') ? new_loc = (i-1, j) : nothing
+        i == 1 ? (new_id, new_loc, new_dir) = move_over_edge(state, cube) : nothing
+    end
+
+    return (new_id, new_loc, new_dir)
+end
+
+
+function iterate_cube!(state::CubeState, cube::Cube, path::Path)
+
+    instruction = path[state.pos]
+
+    if isa(instruction, Char)
+        state.dir = turn(instruction, state.dir)
+    else
+        for _ in 1:instruction
+            (state.id, state.loc, state.dir) = move_cube(state, cube)
+        end
+    end
+
+    state.pos += 1
+    return nothing
+end
+
+
+function password_cube(state::CubeState, cube::Cube)
+
+    face = cube[state.id]
+    corner_loc = face.corner_loc
+    flat_loc = corner_loc .+ state.loc .- 1
+
+    state.dir == 'R' ? facing = 0 : nothing
+    state.dir == 'D' ? facing = 1 : nothing
+    state.dir == 'L' ? facing = 2 : nothing
+    state.dir == 'U' ? facing = 3 : nothing
+
+    println(flat_loc)
+    println(facing)
+
+    return 1000 * flat_loc[1] + 4 * flat_loc[2] + facing
+end
 
 
 
@@ -358,9 +470,17 @@ println(password_flat(state))
 
 # part 2
 
-net = parse_net(filepath)
-all_face_coords = get_all_face_coords(net)
 cube = parse_cube(filepath)
 path = parse_path(filepath)
 state = get_initial_state(cube)
-move_over_edge(state, cube)
+
+display(state)
+display(cube[state.id].board)
+
+for rep in 1:length(path)
+    iterate_cube!(state, cube, path)
+    display(state)
+    display(cube[state.id].board)
+end
+
+println(password_cube(state, cube))
