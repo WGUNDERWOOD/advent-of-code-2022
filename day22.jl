@@ -378,7 +378,12 @@ function move_over_edge(state::CubeState, cube::Cube)
     new_edge == 'U' ? new_dir = 'D' : nothing
     new_edge == 'D' ? new_dir = 'U' : nothing
 
-    return (new_face.id, new_loc, new_dir)
+    # check not hitting a wall on the next face
+    if new_face.board[new_loc[1], new_loc[2]] == '.'
+        return (new_face.id, new_loc, new_dir)
+    else
+        return (face.id, state.loc, state.dir)
+    end
 end
 
 
@@ -451,8 +456,8 @@ end
 
 
 
-filepath = "day22test.txt"
-#filepath = "day22.txt"
+#filepath = "day22test.txt"
+filepath = "day22.txt"
 
 #=
 # part 1
@@ -468,19 +473,49 @@ end
 println(password_flat(state))
 =#
 
+
+
+
+
+
+#=
+cube = parse_cube(filepath)
+net = parse_net(filepath)
+display(net)
+
+state = CubeState(4, (2, 4), 'R', 1)
+move_cube(state, cube)
+# correct
+
+state = CubeState(5, (4, 3), 'D', 1)
+move_cube(state, cube)
+# correct
+
+# TODO forgot to check for walls when going over edges
+=#
+
+
+
+
+
+
+
+
+
 # part 2
+
 
 cube = parse_cube(filepath)
 path = parse_path(filepath)
 state = get_initial_state(cube)
 
-display(state)
-display(cube[state.id].board)
+#display(state)
+#display(cube[state.id].board)
 
 for rep in 1:length(path)
     iterate_cube!(state, cube, path)
-    display(state)
-    display(cube[state.id].board)
+    #display(state)
+    #display(cube[state.id].board)
 end
 
 println(password_cube(state, cube))
