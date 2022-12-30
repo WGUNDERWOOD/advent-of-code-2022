@@ -70,8 +70,7 @@ function get_initial_state(flat::Flat)
 
     i = 1
     j = findfirst(x -> x != ' ', flat[i, :])
-
-    state = State((i, j), 'R', 1)
+    state = FlatState((i, j), 'R', 1)
 
     return state
 end
@@ -138,7 +137,7 @@ function turn(instruction::Char, dir::Char)
 end
 
 
-function iterate_flat!(state::State, flat::Flat, path::Path)
+function iterate_flat!(state::FlatState, flat::Flat, path::Path)
 
     instruction = path[state.pos]
 
@@ -146,7 +145,7 @@ function iterate_flat!(state::State, flat::Flat, path::Path)
         state.dir = turn(instruction, state.dir)
     else
         for _ in 1:instruction
-            (state.i, state.j) = move_flat((state.i, state.j), state.dir, flat)
+            state.loc = move_flat(state.loc, state.dir, flat)
         end
     end
 
@@ -155,94 +154,52 @@ function iterate_flat!(state::State, flat::Flat, path::Path)
 end
 
 
-function password_flat(state::State)
+function password_flat(state::FlatState)
     state.dir == 'R' ? facing = 0 : nothing
     state.dir == 'D' ? facing = 1 : nothing
     state.dir == 'L' ? facing = 2 : nothing
     state.dir == 'U' ? facing = 3 : nothing
-    return 1000 * state.pos[1] + 4 * state.pos[2] + facing
+    return 1000 * state.loc[1] + 4 * state.loc[2] + facing
+end
+
+
+# part 2
+
+Point3 = Tuple{Int, Int, Int}
+Orientation = Tuple{Point3, Point3, Point3, Point3}
+
+mutable struct CubeState
+    id::Int
+    loc::Point2
+    dir::Char
+    pos::Int
 end
 
 
 mutable struct Face
     id::Int
-    start::Tuple{Int, Int}
-    side_len::Int
-    neighbors::Dict{Char, Union{Int, Nothing}}
+    board::Matrix{Char}
+    orientation::Orientation
 end
 
+Cube = Dict{Int, Face}
+Net = Matrix{Bool}
 
 
+function parse_net(filepath::String)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Net = Dict{Int, Face}
-Point3 = Tuple{Int, Int, Int}
-
-
-function get_net(board::Board)
-
-    (m, n) = size(board)
-    side_len = minimum(sum(board[i,:] .!= ' ') for i in 1:m)
+    flat = parse_flat(filepath)
+    (m, n) = size(flat)
+    side_len = minimum(sum(flat[i,:] .!= ' ') for i in 1:m)
     (m_net, n_net) = (div(m, side_len), div(n, side_len))
-    net = Net()
-    id = 1
+    net = Net(undef, m_net, n_net)
 
-    for r in 1:m_net
-        for s in 1:n_net
-            (i, j) = ((r-1) * side_len + 1, (s-1) * side_len + 1)
-            if board[i, j] != ' '
-                neighbors = Dict('D' => nothing, 'U' => nothing,
-                    'R' => nothing, 'L' => nothing)
-                face = Face(id, (i, j), side_len, neighbors)
-                push!(net, id => face)
-                id += 1
-            end
-        end
-    end
-
-    for id in keys(net)
-
-        face = net[id]
-
-        # D
-        new_start = face.start[1] + face.side_len
-        if (new_start <= m) && (board[new_start, face.start[2]] != ' ')
-            new_id = [f.id for f in values(net) if f.start == (new_start, face.start[2])][]
-            face.neighbors['D'] = new_id
-        end
-
-        # U
-        new_start = face.start[1] - face.side_len
-        if (new_start >= 1) && (board[new_start, face.start[2]] != ' ')
-            new_id = [f.id for f in values(net) if f.start == (new_start, face.start[2])][]
-            face.neighbors['U'] = new_id
-        end
-
-        # R
-        new_start = face.start[2] + face.side_len
-        if (new_start <= m) && (board[face.start[1], new_start] != ' ')
-            new_id = [f.id for f in values(net) if f.start == (face.start[1], new_start)][]
-            face.neighbors['R'] = new_id
-        end
-
-        # L
-        new_start = face.start[2] - face.side_len
-        if (new_start >= 1) && (board[face.start[1], new_start] != ' ')
-            new_id = [f.id for f in values(net) if f.start == (face.start[1], new_start)][]
-            face.neighbors['L'] = new_id
+    for r in 1:m_net, s in 1:n_net
+        (i, j) = ((r-1) * side_len + 1, (s-1) * side_len + 1)
+        if flat[i, j] != ' '
+            net[r, s] = true
+        else
+            net[r, s] = false
         end
     end
 
@@ -250,98 +207,121 @@ function get_net(board::Board)
 end
 
 
-function go_over_edge(id::Int, edge::Char, net::Net)
+function get_all_orientations(net::Net)
 
-    face = net[id]
+    (m_net, n_net) = size(net)
+    all_orientations = Matrix{Union{Orientation, Nothing}}(nothing, m_net, n_net)
 
-    if !isnothing(face.neighbors[edge])
-        println(face)
-        return (face.neighbors[edge], edge, true)
-    end
+    # orientation of first face
+    first_orientation = ((-1,1,1), (1,1,1), (-1,-1,1), (1,-1,1))
+    all_orientations[1, findfirst(net[1, :])] = first_orientation
 
+    # orientation of other faces
+    for rep in 1:6
+        for r in 1:m_net, s in 1:n_net
+            if net[r,s] && !isnothing(all_orientations[r,s])
 
-end
+                if (r < m_net) && net[r+1, s] && isnothing(all_orientations[r+1, s])
+                    all_orientations[r+1, s] = rotate.(all_orientations[r,s], 'D')
+                end
 
+                if (r > 1) && net[r-1, s] && isnothing(all_orientations[r-1, s])
+                    all_orientations[r-1, s] = rotate.(all_orientations[r,s], 'U')
+                end
 
+                if (s < n_net) && net[r, s+1] && isnothing(all_orientations[r, s+1])
+                    all_orientations[r, s+1] = rotate.(all_orientations[r,s], 'R')
+                end
 
+                if (s > 1) && net[r, s-1] && isnothing(all_orientations[r, s-1])
+                    all_orientations[r, s-1] = rotate.(all_orientations[r,s], 'L')
+                end
 
-
-
-
-
-
-
-
-
-
-
-
-
-#=
-function cube_move(i::Int, j::Int, dir::Char, board::Board)
-
-    (m, n) = size(board)
-    new_i = i
-    new_j = j
-
-    if dir == 'R'
-        if (j <= n-1) && (board[i, j+1] == '.')
-            new_j = j+1
-        elseif ((j <= n-1) && (board[i, j+1] == ' ')) || (j == n)
-            wrap = findfirst(x -> x != ' ', board[i, :])
-            board[i, wrap] == '.' ? new_j = wrap : nothing
+            end
         end
     end
 
-    return (new_i, new_j)
+    return all_orientations
 end
 
 
-function cube_iterate!(state::State, board::Board, path::Path)
+function rotate(point::Point3, dir::Char)
 
-    instruction = path[state.loc]
+    if dir == 'D'
+        A = [1 0 0; 0 0 -1; 0 1 0]
+    elseif dir == 'U'
+        A = [1 0 0; 0 0 1; 0 -1 0]
+    elseif dir == 'R'
+        A = [0 0 1; 0 1 0; -1 0 0]
+    elseif dir == 'L'
+        A = [0 0 -1; 0 1 0; 1 0 0]
+    end
 
-    if isa(instruction, Char)
-        state.dir = turn(instruction, state.dir)
-    else
-        for _ in 1:instruction
-            (state.i, state.j) = cube_move(state.i, state.j, state.dir, board)
+    return Tuple(A * [i for i in point])
+end
+
+
+function parse_cube(filepath::String)
+
+    net = parse_net(filepath)
+    all_orientations = get_all_orientations(net)
+    flat = parse_flat(filepath)
+    (m, n) = size(flat)
+    side_len = minimum(sum(flat[i,:] .!= ' ') for i in 1:m)
+    (m_net, n_net) = (div(m, side_len), div(n, side_len))
+    id = 1
+    cube = Cube()
+
+    for r in 1:m_net, s in 1:n_net
+        if net[r, s]
+            (i, j) = ((r-1) * side_len + 1, (s-1) * side_len + 1)
+            board = flat[i:i+side_len-1, j:j+side_len-1]
+            orientation = all_orientations[r, s]
+            face = Face(id, board, orientation)
+            cube[id] = face
+            id += 1
         end
     end
 
-    state.loc += 1
-    return nothing
+    return cube
 end
-=#
+
+
+function get_initial_state(cube::Cube)
+
+    id = 1
+    i = 1
+    j = findfirst(x -> x != ' ', cube[id].board[i, :])
+    loc = (i, j)
+    state = CubeState(id, (i, j), 'R', 1)
+    return state
+end
 
 
 
 
-(state, board, path) = parse_input("day22test.txt")
-#(state, board, path) = parse_input("day22.txt")
+
+filepath = "day22test.txt"
+#filepath = "day22.txt"
 
 #=
 # part 1
+
+flat = parse_flat(filepath)
+path = parse_path(filepath)
+state = get_initial_state(flat)
+
 for rep in 1:length(path)
-    iterate!(state, board, path)
+    iterate_flat!(state, flat, path)
 end
 
-println(password(state, board))
+println(password_flat(state))
 =#
-
 
 # part 2
 
-#for rep in 1:length(path)
-    #cube_iterate!(state, board, path)
-#end
-
-net = get_net(board)
-display(net)
-
-
-#println(password(state, board))
-
-println()
-
-=#
+net = parse_net(filepath)
+all_orientations = get_all_orientations(net)
+cube = parse_cube(filepath)
+path = parse_path(filepath)
+state = get_initial_state(cube)
