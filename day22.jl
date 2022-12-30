@@ -193,7 +193,7 @@ function parse_net(filepath::String)
     side_len = minimum(sum(flat[i,:] .!= ' ') for i in 1:m)
     (m_net, n_net) = (div(m, side_len), div(n, side_len))
     net = Net(undef, m_net, n_net)
-    id = 1
+    id::Int = 1
 
     for r in 1:m_net, s in 1:n_net
         (i, j) = ((r-1) * side_len + 1, (s-1) * side_len + 1)
@@ -219,7 +219,7 @@ function get_all_face_coords(net::Net)
     all_face_coords[1, findfirst(net[1, :] .> 0)] = first_face_coords
 
     # face_coords of other faces
-    for rep in 1:6
+    for rep in 1:5
         for r in 1:m_net, s in 1:n_net
             if (net[r,s] > 0) && !isnothing(all_face_coords[r,s])
 
@@ -249,20 +249,15 @@ end
 
 function rotate(face_coords::Matrix{Int}, dir::Char)
 
-    first_face_coords = [-1 1 -1 1; 1 1 -1 -1; 1 1 1 1]
-    A_face = face_coords[:,1:3] * inv(first_face_coords[:,1:3])
-
     if dir == 'D'
-        A = [1 0 0; 0 0 -1; 0 1 0]
+        return face_coords[:, 1:3] * [0 -1 0 -1; 0 1 -1 0; 1 1 0 0]
     elseif dir == 'U'
-        A = [1 0 0; 0 0 1; 0 -1 0]
+        return face_coords[:, 1:3] * [1 0 1 0; -1 0 0 1; -1 -1 0 0]
     elseif dir == 'R'
-        A = [0 0 1; 0 1 0; -1 0 0]
+        return face_coords[:, 1:3] * [0 0 -1 -1; 1 0 1 0; 0 -1 1 0]
     elseif dir == 'L'
-        A = [0 0 -1; 0 1 0; 1 0 0]
+        return face_coords[:, 1:3] * [1 1 0 0; -1 0 -1 0; -1 0 0 1]
     end
-
-    return A_face * A * first_face_coords
 end
 
 
@@ -293,8 +288,8 @@ end
 
 function get_initial_state(cube::Cube)
 
-    id = 1
-    i = 1
+    id::Int = 1
+    i::Int = 1
     j = findfirst(x -> x != ' ', cube[id].board[i, :])
     loc = (i, j)
     state = CubeState(id, (i, j), 'R', 1)
@@ -447,21 +442,13 @@ function password_cube(state::CubeState, cube::Cube)
     state.dir == 'L' ? facing = 2 : nothing
     state.dir == 'U' ? facing = 3 : nothing
 
-    println(flat_loc)
-    println(facing)
-
     return 1000 * flat_loc[1] + 4 * flat_loc[2] + facing
 end
 
 
-
-
-#filepath = "day22test.txt"
-filepath = "day22.txt"
-
-#=
 # part 1
 
+filepath = "day22.txt"
 flat = parse_flat(filepath)
 path = parse_path(filepath)
 state = get_initial_state(flat)
@@ -471,51 +458,17 @@ for rep in 1:length(path)
 end
 
 println(password_flat(state))
-=#
-
-
-
-
-
-
-#=
-cube = parse_cube(filepath)
-net = parse_net(filepath)
-display(net)
-
-state = CubeState(4, (2, 4), 'R', 1)
-move_cube(state, cube)
-# correct
-
-state = CubeState(5, (4, 3), 'D', 1)
-move_cube(state, cube)
-# correct
-
-# TODO forgot to check for walls when going over edges
-=#
-
-
-
-
-
-
-
 
 
 # part 2
-
 
 cube = parse_cube(filepath)
 path = parse_path(filepath)
 state = get_initial_state(cube)
 
-#display(state)
-#display(cube[state.id].board)
-
 for rep in 1:length(path)
     iterate_cube!(state, cube, path)
-    #display(state)
-    #display(cube[state.id].board)
 end
 
 println(password_cube(state, cube))
+println()
