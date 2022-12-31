@@ -2,52 +2,86 @@ println("Day 23")
 
 mutable struct Elf
     id::Int
-    loc::Tuple{Int, Int}
-    dirs::Vector{Tuple{Int, Int}}
-    prop_loc::Tuple{Int, Int}
+    prop_loc::Union{Tuple{Int, Int}, Nothing}
 end
+
+
+Elves = Matrix{Union{Elf, Nothing}}
+Directions = Vector{Tuple{Int, Int}}
 
 
 function parse_input(filepath)
 
     file = readlines(filepath)
     (m, n) = (length(file), length(file[1]))
-    dirs = [(-1,0), (1,0), (0,-1), (0,1)] # NSWE
-    elves = Elf[]
+    elves = Elves(nothing, m, n)
     id = 1
 
     for i in eachindex(file)
         for j in eachindex(file[i])
-            c = file[i][j]
-            if c == '#'
-                loc = (i, j)
-                prop_loc = (0, 0)
-                elf = Elf(id, loc, copy(dirs), prop_loc)
-                push!(elves, elf)
+            if file[i][j] == '#'
+                elves[i, j] = Elf(id, nothing)
                 id += 1
             end
         end
+    end
+
+    directions = [(-1,0), (1,0), (0,-1), (0,1)]
+
+    return (elves, directions)
+end
+
+
+function neighbors(i::Int, j::Int)
+    return ((r, s) for r in i-1:i+1 for s in j-1:j+1 if (r, s) != (i, j))
+end
+
+
+function neighbors2(i::Int, j::Int)
+    return ((r, s) for r in i-2:i+2 for s in j-2:j+2 if (r, s) != (i, j))
+end
+
+function adjacent(i::Int, j::Int, dir::Tuple{Int, Int})
+    return ((i, j) .+ dir .+ a for a in ((0,0), reverse(dir), -1 .* reverse(dir)))
+end
+
+
+function resize_elves(elves::Elves, margin::Int)
+
+    (m, n) = size(elves)
+    left = reshape(elves[:, 1:2], :)
+    right = reshape(elves[:, n-1:n], :)
+    top = reshape(elves[1:2, :], :)
+    bottom = reshape(elves[m-1:m, :], :)
+
+    if any(!isnothing(e) for e in [left; right; top; bottom])
+        new_elves = Elves(nothing, m + 2 * margin, n + 2 * margin)
+        new_elves[1+margin:m+margin, 1+margin:n+margin] .= elves
+        elves = new_elves
     end
 
     return elves
 end
 
 
-function first_half!(elves::Vector{Elf})
+function first_half!(elves::Elves, directions::Directions)
 
-    for elf in elves
-        loc = elf.loc
-        elf.prop_loc = loc
-        nbors = [(i, j) for i in loc[1]-1:loc[1]+1 for j in loc[2]-1:loc[2]+1]
+    (m, n) = size(elves)
 
-        if !any(e.loc in nbors for e in elves if e != elf)
-            elf.prop_loc = elf.loc
+    for i in 1:m, j in 1:n
+        if !isnothing(elves[i,j])
 
-        else
-            for dir in reverse(elf.dirs)
-                adj = [elf.loc .+ dir .+ a for a in [(0,0), reverse(dir), -1 .* reverse(dir)]]
-                if !any(e.loc in adj for e in elves)
-                    elf.prop_loc = elf.loc .+ dir
+            elf = elves[i,j]
+            elf.prop_loc = (i, j)
+
+            if all(isnothing(elves[r,s]) for (r, s) in neighbors(i, j))
+                elf.prop_loc = (i, j)
+
+            else
+                for dir in reverse(directions)
+                    if all(isnothing(elves[r,s]) for (r, s) in adjacent(i, j, dir))
+                        elf.prop_loc = (i, j) .+ dir
+                    end
                 end
             end
         end
@@ -55,40 +89,51 @@ function first_half!(elves::Vector{Elf})
 end
 
 
-function second_half!(elves::Vector{Elf})
+function second_half!(elves::Elves, directions::Directions)
 
-    for elf in elves
-        if !any(e.prop_loc == elf.prop_loc for e in elves if e != elf)
-            elf.loc = elf.prop_loc
+    (m, n) = size(elves)
+
+    for i in 1:m, j in 1:n
+        elf = elves[i,j]
+        if !isnothing(elf) && !isnothing(elf.prop_loc)
+
+            prop_loc = elf.prop_loc
+
+            if all(isnothing(elves[r,s]) || elves[r,s].prop_loc != prop_loc
+                   for (r, s) in neighbors2(i, j))
+
+                elves[i, j] = nothing
+                elves[prop_loc[1], prop_loc[2]] = Elf(elf.id, nothing)
+            end
         end
-
-        dir = popfirst!(elf.dirs)
-        push!(elf.dirs, dir)
     end
+
+    direction = popfirst!(directions)
+    push!(directions, direction)
 end
 
 
-function get_bounding_rectangle(elves::Vector{Elf})
+function get_bounding_rectangle(elves::Elves)
 
-    locs = [e.loc for e in elves]
-    lo_i = minimum(loc[1] for loc in locs)
-    hi_i = maximum(loc[1] for loc in locs)
-    lo_j = minimum(loc[2] for loc in locs)
-    hi_j = maximum(loc[2] for loc in locs)
+    (m, n) = size(elves)
+    locs = [(i, j) for i in 1:m for j in 1:n if !isnothing(elves[i, j])]
+    lo_i = minimum(i for (i, j) in locs)
+    hi_i = maximum(i for (i, j) in locs)
+    lo_j = minimum(j for (i, j) in locs)
+    hi_j = maximum(j for (i, j) in locs)
 
     return (lo_i, hi_i, lo_j, hi_j)
 end
 
 
-function count_empty(elves::Vector{Elf})
+function count_empty(elves::Elves)
 
-    locs = [e.loc for e in elves]
     (lo_i, hi_i, lo_j, hi_j) = get_bounding_rectangle(elves)
     n_empty = 0
 
     for i in lo_i:hi_i
         for j in lo_j:hi_j
-            (i,j) in locs ? nothing : n_empty += 1
+            isnothing(elves[i,j]) ? n_empty += 1 : nothing
         end
     end
 
@@ -96,14 +141,13 @@ function count_empty(elves::Vector{Elf})
 end
 
 
-function show(elves::Vector{Elf})
+function show(elves::Elves)
 
-    locs = [e.loc for e in elves]
     (lo_i, hi_i, lo_j, hi_j) = get_bounding_rectangle(elves)
 
     for i in lo_i:hi_i
         for j in lo_j:hi_j
-            (i,j) in locs ? print('#') : print('.')
+            isnothing(elves[i,j]) ? print('.') : print('#')
         end
         println()
     end
@@ -111,48 +155,61 @@ function show(elves::Vector{Elf})
 end
 
 
-function is_terminated(elves::Vector{Elf})
+function is_terminated(elves::Elves)
 
-    has_nbors = Bool[]
+    (m, n) = size(elves)
 
-    for elf in elves
-        loc = elf.loc
-        nbors = [(i, j) for i in loc[1]-1:loc[1]+1 for j in loc[2]-1:loc[2]+1]
-        has_nbor = any(e.loc in nbors for e in elves if e != elf)
-        push!(has_nbors, has_nbor)
+    for i in 1:m, j in 1:n
+        elf = elves[i,j]
+        if !isnothing(elf)
+            if any(!isnothing(elves[r,s]) for (r, s) in neighbors(i, j))
+                return false
+            end
+        end
     end
 
-    return !any(has_nbors)
+    return true
+end
+
+
+function iterate_rounds!(elves::Elves, directions::Directions, n_rounds::Int)
+
+    for round in 1:n_rounds
+        elves = resize_elves(elves, 10)
+        first_half!(elves, directions)
+        second_half!(elves, directions)
+    end
+
+    return (elves, directions)
+end
+
+
+function iterate_to_termination!(elves::Elves, directions::Directions)
+
+    terminated = false
+    round = 0
+
+    while !terminated
+        round += 1
+        elves = resize_elves(elves, 10)
+        first_half!(elves, directions)
+        second_half!(elves, directions)
+        terminated = is_terminated(elves)
+    end
+
+    return (elves, directions, round)
 end
 
 
 # part 1
-
-#filepath = "day23test.txt"
 filepath = "day23.txt"
-elves = parse_input(filepath)
-
-for round in 1:10
-    first_half!(elves)
-    second_half!(elves)
-end
-
+(elves, directions) = parse_input(filepath)
+(elves, directions) = iterate_rounds!(elves, directions, 10)
 n_empty = count_empty(elves)
 println(n_empty)
 
 # part 2
-elves = parse_input(filepath)
-terminated = false
-round = 0
-
-while !terminated
-#for rep in 1:20
-    global round += 1
-    first_half!(elves)
-    second_half!(elves)
-    global terminated = is_terminated(elves)
-    println(round)
-    show(elves)
-end
-
+(elves, directions) = parse_input(filepath)
+(elves, directions, round) = iterate_to_termination!(elves, directions)
 println(round + 1)
+println()
