@@ -153,7 +153,7 @@ end
 
 function neighbors(loc::Tuple{Int, Int})
     (i, j) = loc
-    return [(i,j), (i+1,j), (i-1,j), (i,j+1), (i,j-1)]
+    return ((i,j), (i+1,j), (i-1,j), (i,j+1), (i,j-1))
 end
 
 
@@ -167,7 +167,7 @@ function get_new_states(state::State, blizzards::Blizzards)
     for new_locs in neighbors(state.loc)
         (i, j) = new_locs
         if (1 <= i <= m) && (1 <= j <= n)
-            if blizzard[i, j] == [0, 0, 0, 0, 0]
+            if all(blizzard[i, j] .== 0)
                 push!(new_states, State((i, j), time+1))
             end
         end
@@ -205,22 +205,12 @@ function get_best_time(loc_start::Tuple{Int, Int}, loc_goal::Tuple{Int, Int},
                 end
             end
         end
-        #println(length(checking))
-        #println(state)
-        #println(length(keys(visited)))
-        #if length(checking) > 0
-        #println(checking[end])
-        #end
-        #println()
     end
 
     return minimum(state.time for state in checked)
 end
 
 
-
-#filepath = "day24test.txt"
-#filepath = "day24test2.txt"
 filepath = "day24.txt"
 
 (loc_start, loc_goal, blizzard_start) = parse_input(filepath)
@@ -228,6 +218,7 @@ filepath = "day24.txt"
 limit1 = 260
 blizzards1 = get_blizzards(blizzard_start, limit1)
 time1 = get_best_time(loc_start, loc_goal, blizzards1, limit1)
+println("Part 1: ", time1-1)
 
 limit2 = 270
 blizzards2 = get_blizzards(blizzards1[time1], limit2)
@@ -237,22 +228,5 @@ limit3 = 300
 blizzards3 = get_blizzards(blizzards2[time2], limit3)
 time3 = get_best_time(loc_start, loc_goal, blizzards3, limit3)
 
-println(time1)
-println(time2)
-println(time3)
-
-println(time1 + time2 + time3 - 3)
-# 19, 24, 14
-
-
-
-
-
-
-
-
-
-
-
-
+println("Part 2: ", time1 + time2 + time3 - 3)
 println()

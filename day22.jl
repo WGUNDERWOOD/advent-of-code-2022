@@ -457,7 +457,7 @@ for rep in 1:length(path)
     iterate_flat!(state, flat, path)
 end
 
-println(password_flat(state))
+println("Part 1: ", password_flat(state))
 
 
 # part 2
@@ -470,5 +470,5 @@ for rep in 1:length(path)
     iterate_cube!(state, cube, path)
 end
 
-println(password_cube(state, cube))
+println("Part 2: ", password_cube(state, cube))
 println()

@@ -206,10 +206,10 @@ filepath = "day23.txt"
 (elves, directions) = parse_input(filepath)
 (elves, directions) = iterate_rounds!(elves, directions, 10)
 n_empty = count_empty(elves)
-println(n_empty)
+println("Part 1: ", n_empty)
 
 # part 2
 (elves, directions) = parse_input(filepath)
 (elves, directions, round) = iterate_to_termination!(elves, directions)
-println(round + 1)
+println("Part 2: ", round + 1)
 println()
