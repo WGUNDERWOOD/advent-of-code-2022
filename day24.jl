@@ -183,30 +183,47 @@ end
 filepath = "day24.txt"
 
 (initial_state, loc_goal, blizzard) = parse_input(filepath)
-limit = 20
+limit = 300
+(m, n) = size(blizzard)
+lcm_size = lcm(m, n)
 blizzards = get_blizzards(blizzard, limit)
+visited = Dict{Tuple{Tuple{Int, Int}, Int}, Bool}()
 
 checking = State[initial_state]
 checked = State[]
 
 while length(checking) > 0
+
     state = pop!(checking)
     new_states = get_new_states(state, blizzards)
 
     for new_state in new_states
         if new_state.time < limit
-            if new_state.loc == loc_goal
-                push!(checked, new_state)
-            else
-                push!(checking, new_state)
+
+            if !haskey(visited, (new_state.loc, new_state.time % lcm_size))
+
+                if new_state.loc == loc_goal
+                    push!(checked, new_state)
+                else
+                    push!(checking, new_state)
+                end
+
+                visited[(new_state.loc, new_state.time % lcm_size)] = true
+
             end
         end
     end
-    #println(length(checking))
+    println(length(checking))
     #println(state)
+    println(length(keys(visited)))
+    if length(checking) > 0
+        println(checking[end])
+    end
+    println()
 end
 
 println(checked)
+println(minimum(state.time for state in checked))
 
 
 
