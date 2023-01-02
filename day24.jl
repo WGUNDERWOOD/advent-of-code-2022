@@ -15,30 +15,30 @@ function parse_input(filepath::String)
     file = readlines(filepath)
     m = length(file)
     n = length(file[1])
-    blizzard = Blizzard(undef, m, n)
-    loc = (0, 0)
+    blizzard_start = Blizzard(undef, m, n)
+    loc_start = (0, 0)
     loc_goal = (0, 0)
 
     for i in 1:m
         for j in 1:n
 
             if file[i][j] == '.'
-                blizzard[i,j] = [0, 0, 0, 0, 0]
+                blizzard_start[i,j] = [0, 0, 0, 0, 0]
             elseif file[i][j] == 'v'
-                blizzard[i,j] = [1, 0, 0, 0, 0]
+                blizzard_start[i,j] = [1, 0, 0, 0, 0]
             elseif file[i][j] == '^'
-                blizzard[i,j] = [0, 1, 0, 0, 0]
+                blizzard_start[i,j] = [0, 1, 0, 0, 0]
             elseif file[i][j] == '>'
-                blizzard[i,j] = [0, 0, 1, 0, 0]
+                blizzard_start[i,j] = [0, 0, 1, 0, 0]
             elseif file[i][j] == '<'
-                blizzard[i,j] = [0, 0, 0, 1, 0]
+                blizzard_start[i,j] = [0, 0, 0, 1, 0]
             elseif file[i][j] == '#'
-                blizzard[i,j] = [0, 0, 0, 0, 1]
+                blizzard_start[i,j] = [0, 0, 0, 0, 1]
             end
 
             if i == 1
                 if file[i][j] == '.'
-                    loc = (i, j)
+                    loc_start = (i, j)
                 end
             end
 
@@ -50,8 +50,7 @@ function parse_input(filepath::String)
         end
     end
 
-    initial_state = State(loc, 1)
-    return (initial_state, loc_goal, blizzard)
+    return (loc_start, loc_goal, blizzard_start)
 end
 
 
@@ -140,9 +139,9 @@ function iterate(blizzard::Blizzard)
 end
 
 
-function get_blizzards(initial_blizzard::Blizzard, limit::Int)
+function get_blizzards(blizzard_start::Blizzard, limit::Int)
 
-    blizzards = [blizzard]
+    blizzards = [blizzard_start]
 
     for t in 1:limit-1
         push!(blizzards, iterate(blizzards[end]))
@@ -178,52 +177,72 @@ function get_new_states(state::State, blizzards::Blizzards)
 end
 
 
+function get_best_time(loc_start::Tuple{Int, Int}, loc_goal::Tuple{Int, Int},
+                       blizzards::Blizzards, limit::Int)
+
+    (m, n) = size(blizzards[1])
+    lm = lcm(m, n)
+    visited = Dict{Tuple{Tuple{Int, Int}, Int}, Bool}()
+    state_start = State(loc_start, 1)
+    checking = State[state_start]
+    checked = State[]
+
+    while length(checking) > 0
+
+        state = pop!(checking)
+        new_states = get_new_states(state, blizzards)
+
+        for new_state in new_states
+            if new_state.time < limit
+
+                if !haskey(visited, (new_state.loc, new_state.time % lm))
+                    if new_state.loc == loc_goal
+                        push!(checked, new_state)
+                    else
+                        push!(checking, new_state)
+                    end
+                    visited[(new_state.loc, new_state.time % lm)] = true
+                end
+            end
+        end
+        #println(length(checking))
+        #println(state)
+        #println(length(keys(visited)))
+        #if length(checking) > 0
+        #println(checking[end])
+        #end
+        #println()
+    end
+
+    return minimum(state.time for state in checked)
+end
+
+
+
 #filepath = "day24test.txt"
 #filepath = "day24test2.txt"
 filepath = "day24.txt"
 
-(initial_state, loc_goal, blizzard) = parse_input(filepath)
-limit = 300
-(m, n) = size(blizzard)
-lcm_size = lcm(m, n)
-blizzards = get_blizzards(blizzard, limit)
-visited = Dict{Tuple{Tuple{Int, Int}, Int}, Bool}()
+(loc_start, loc_goal, blizzard_start) = parse_input(filepath)
 
-checking = State[initial_state]
-checked = State[]
+limit1 = 260
+blizzards1 = get_blizzards(blizzard_start, limit1)
+time1 = get_best_time(loc_start, loc_goal, blizzards1, limit1)
 
-while length(checking) > 0
+limit2 = 270
+blizzards2 = get_blizzards(blizzards1[time1], limit2)
+time2 = get_best_time(loc_goal, loc_start, blizzards2, limit2)
 
-    state = pop!(checking)
-    new_states = get_new_states(state, blizzards)
+limit3 = 300
+blizzards3 = get_blizzards(blizzards2[time2], limit3)
+time3 = get_best_time(loc_start, loc_goal, blizzards3, limit3)
 
-    for new_state in new_states
-        if new_state.time < limit
+println(time1)
+println(time2)
+println(time3)
 
-            if !haskey(visited, (new_state.loc, new_state.time % lcm_size))
-
-                if new_state.loc == loc_goal
-                    push!(checked, new_state)
-                else
-                    push!(checking, new_state)
-                end
-
-                visited[(new_state.loc, new_state.time % lcm_size)] = true
-
-            end
-        end
-    end
-    println(length(checking))
-    #println(state)
-    println(length(keys(visited)))
-    if length(checking) > 0
-        println(checking[end])
-    end
-    println()
-end
-
-println(checked)
-println(minimum(state.time for state in checked))
+println(time1 + time2 + time3 - 3)
+# 19, 24, 14
 
 
 
