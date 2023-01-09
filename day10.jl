@@ -1,12 +1,14 @@
 println("Day 10")
 
-function noop!(register)
+function noop!(register::Vector{Int})
     push!(register, register[end])
+    return nothing
 end
 
-function addx!(v, register)
+function addx!(v::Int, register::Vector{Int})
     noop!(register)
     push!(register, register[end] + v)
+    return nothing
 end
 
 # Part 1

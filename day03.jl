@@ -24,10 +24,7 @@ end
 
 function shared_string(strings::Vector{String})
 
-    if length(strings) == 0
-        return nothing
-
-    elseif length(strings) == 1
+    if length(strings) == 1
         return strings[1]
 
     elseif length(strings) == 2
@@ -36,8 +33,7 @@ function shared_string(strings::Vector{String})
         return String(collect(intersect(s1, s2)))
 
     elseif length(strings) >= 3
-        s = shared_string([shared_string(strings[1:2]); strings[3:end]])
-        return s
+        return shared_string([shared_string(strings[1:2]); strings[3:end]])
 
     end
 end

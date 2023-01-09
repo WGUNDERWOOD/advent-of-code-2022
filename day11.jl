@@ -123,21 +123,6 @@ function perform_round!(monkeys::Vector{Monkey}, div3::Bool)
 end
 
 
-function show(monkey::Monkey)
-    println("Monkey ID: ", monkey.id)
-    println("Items:")
-    for item in monkey.items
-        print("    ")
-        for k in sort(collect(keys(item)))
-            print(k, " => ", item[k], ", ")
-        end
-        println()
-    end
-    println("Inspections: ", monkey.inspections)
-    println()
-end
-
-
 function most_active(k::Int, monkeys::Vector{Monkey})
     sorted_monkeys = sort(monkeys, by = x -> x.inspections, rev=true)
     return sorted_monkeys[1:k]
