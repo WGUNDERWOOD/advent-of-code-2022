@@ -1,7 +1,7 @@
 println("Day 12")
 
 
-struct Dijkstra
+struct Hill
     heights::Matrix{Int}
     distances::Matrix{Union{Int, Float64}}
     visited::Matrix{Bool}
@@ -10,7 +10,7 @@ struct Dijkstra
 end
 
 
-function parse_dijkstra(filepath::String)
+function parse_hill(filepath::String)
 
     file = readlines(filepath)
     m = length(file)
@@ -49,31 +49,7 @@ function parse_dijkstra(filepath::String)
     # get visited
     visited = fill(false, (m, n))
 
-    return Dijkstra(heights, distances, visited, S, E)
-end
-
-
-function show(dijkstra::Dijkstra)
-
-    println("Start: ", dijkstra.S)
-    println("End: ", dijkstra.E)
-
-    (m, n) = size(dijkstra.heights)
-    formatted_heights = Array{Union{Int, Char}}(undef, (m, n))
-
-    for i in 1:m
-        for j in 1:n
-            if (i, j) == dijkstra.S
-                formatted_heights[i, j] = 'S'
-            elseif (i, j) == dijkstra.E
-                formatted_heights[i, j] = 'E'
-            else
-                formatted_heights[i, j] = dijkstra.heights[i, j]
-            end
-        end
-    end
-
-    display(formatted_heights)
+    return Hill(heights, distances, visited, S, E)
 end
 
 
@@ -104,16 +80,16 @@ function neighbors(i::Int, j::Int, m::Int, n::Int)
 end
 
 
-function closest_unvisited(dijkstra::Dijkstra)
+function closest_unvisited(hill::Hill)
 
     closest_distance = Inf
     best_coord = nothing
-    (m, n) = size(dijkstra.heights)
+    (m, n) = size(hill.heights)
 
     for i in 1:m
         for j in 1:n
-            if !dijkstra.visited[i,j]
-                distance = dijkstra.distances[i,j]
+            if !hill.visited[i,j]
+                distance = hill.distances[i,j]
                 if distance < closest_distance
                     closest_distance = distance
                     best_coord = (i, j)
@@ -126,15 +102,15 @@ function closest_unvisited(dijkstra::Dijkstra)
 end
 
 
-function terminated(dijkstra::Dijkstra)
+function terminated(hill::Hill)
 
     unvisited_distances = []
-    (m, n) = size(dijkstra.heights)
+    (m, n) = size(hill.heights)
 
     for i in 1:m
         for j in 1:n
-            if !dijkstra.visited[i,j]
-                distance = dijkstra.distances[i,j]
+            if !hill.visited[i,j]
+                distance = hill.distances[i,j]
                 push!(unvisited_distances, distance)
             end
         end
@@ -144,47 +120,47 @@ function terminated(dijkstra::Dijkstra)
 end
 
 
-function iterate!(dijkstra::Dijkstra)
+function iterate!(hill::Hill)
 
-    (m, n) = size(dijkstra.heights)
-
-    (i, j) = Tuple(closest_unvisited(dijkstra))
-    distance = dijkstra.distances[i,j]
-    height = dijkstra.heights[i,j]
+    # Dijkstra's algorithm
+    (m, n) = size(hill.heights)
+    (i, j) = Tuple(closest_unvisited(hill))
+    distance = hill.distances[i,j]
+    height = hill.heights[i,j]
 
     for (r, s) in neighbors(i, j, m, n)
-        if !dijkstra.visited[r, s]
+        if !hill.visited[r, s]
 
-            new_height = dijkstra.heights[r,s]
-            old_distance = dijkstra.distances[r,s]
+            new_height = hill.heights[r,s]
+            old_distance = hill.distances[r,s]
 
             if new_height >= height - 1
-                dijkstra.distances[r,s] = Int(min(distance + 1, old_distance))
+                hill.distances[r,s] = Int(min(distance + 1, old_distance))
             end
 
         end
     end
 
-    dijkstra.visited[i, j] = true
+    hill.visited[i, j] = true
 end
 
 
-function path_length_to_S(dijkstra::Dijkstra)
+function path_length_to_S(hill::Hill)
 
-    (i, j) = dijkstra.S
-    return dijkstra.distances[i, j]
+    (i, j) = hill.S
+    return hill.distances[i, j]
 end
 
 
-function path_length_to_a(dijkstra::Dijkstra)
+function path_length_to_a(hill::Hill)
 
-    (m, n) = size(dijkstra.heights)
+    (m, n) = size(hill.heights)
     distances_to_a = []
 
     for i in 1:m
         for j in 1:n
-            if dijkstra.heights[i, j] == 1
-                push!(distances_to_a, dijkstra.distances[i, j])
+            if hill.heights[i, j] == 1
+                push!(distances_to_a, hill.distances[i, j])
             end
         end
     end
@@ -193,12 +169,12 @@ function path_length_to_a(dijkstra::Dijkstra)
 end
 
 
-dijkstra = parse_dijkstra("day12.txt")
+hill = parse_hill("day12.txt")
 
-while !terminated(dijkstra)
-    iterate!(dijkstra)
+while !terminated(hill)
+    iterate!(hill)
 end
 
-println("Part 1: ", path_length_to_S(dijkstra))
-println("Part 2: ", path_length_to_a(dijkstra))
+println("Part 1: ", path_length_to_S(hill))
+println("Part 2: ", path_length_to_a(hill))
 println()

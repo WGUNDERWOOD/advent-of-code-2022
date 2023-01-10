@@ -9,13 +9,6 @@ struct Sensor
 end
 
 
-struct Interval
-    lo::Union{Int, Nothing}
-    hi::Union{Int, Nothing}
-    proper::Bool
-end
-
-
 function parse_sensors(filename::String)
 
     file = readlines(filename)
@@ -44,41 +37,41 @@ function impossible_x(y::Int, sensor::Sensor)
     if rem_dist >= 0
         lo = sensor.loc_x - rem_dist
         hi = sensor.loc_x + rem_dist
-        return Interval(lo, hi, true)
+        return lo:hi
     else
-        return Interval(nothing, nothing, false)
+        return 1:0
     end
 end
 
 
-function simplify(i1::Interval, i2::Interval)
+function simplify(i1::UnitRange, i2::UnitRange)
 
-    if !i1.proper && !i2.proper
-        return [Interval(nothing, nothing, false)]
+    if isempty(i1) && isempty(i2)
+        return [1:0]
     end
 
-    if !i1.proper
+    if isempty(i1)
         return [i2]
     end
 
-    if !i2.proper
+    if isempty(i2)
         return [i1]
     end
 
-    if i1.lo > i2.lo
+    if minimum(i1) > minimum(i2)
         return simplify(i2, i1)
     end
 
-    if i1.hi < i2.lo
+    if maximum(i1) < minimum(i2)
         return [i1, i2]
     else
-        hi = max(i1.hi, i2.hi)
-        return [Interval(i1.lo, hi, true)]
+        hi = max(maximum(i1), maximum(i2))
+        return [minimum(i1):hi]
     end
 end
 
 
-function simplify(intervals::Vector{Interval})
+function simplify(intervals::Vector{UnitRange{Int}})
 
     old_hash = hash(0)
     new_intervals = deepcopy(intervals)
@@ -102,9 +95,9 @@ function simplify(intervals::Vector{Interval})
 end
 
 
-function cardinality(intervals::Vector{Interval})
+function cardinality(intervals::Vector{UnitRange{Int}})
     simple_intervals = simplify(intervals)
-    return sum([i.hi - i.lo for i in simple_intervals])
+    return sum([maximum(i) - minimum(i) for i in simple_intervals])
 end
 
 
