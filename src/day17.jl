@@ -42,38 +42,6 @@ function parse_input(filepath::String)
 end
 
 
-function show(chamber::Chamber)
-
-    println("Reps: ", chamber.n_reps)
-    println("Rock height: ", chamber.rock_height)
-    println("Next jet: ", chamber.jets[chamber.jet_ind])
-    println("Next rock: ")
-    rock = chamber.rocks[chamber.rock_ind]
-
-    for i in 1:size(rock, 1)
-        print("  ")
-        for j in 1:size(rock, 2)
-            print(rock[i,j])
-        end
-        println()
-    end
-
-    println("Tower layout: ")
-    tower = chamber.tower
-
-    for i in 1:length(tower)
-        print("  ")
-        for j in 1:length(tower[1])
-            print(tower[i][j])
-        end
-        println()
-    end
-
-    println()
-    return nothing
-end
-
-
 function iterate!(chamber::Chamber)
 
     n_relevant_rows = min(length(chamber.tower), 50)

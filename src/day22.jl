@@ -2,13 +2,12 @@ println("Day 22")
 
 # part 1
 
-Point2 = Tuple{Int, Int}
 Path = Vector{Union{Int, Char}}
 Flat = Matrix{Char}
 
 
 mutable struct FlatState
-    loc::Point2
+    loc::Tuple{Int, Int}
     dir::Char
     pos::Int
 end
@@ -76,7 +75,7 @@ function get_initial_state(flat::Flat)
 end
 
 
-function move_flat(loc::Point2, dir::Char, flat::Flat)
+function move_flat(loc::Tuple{Int, Int}, dir::Char, flat::Flat)
 
     (m, n) = size(flat)
     (i, j) = loc
@@ -169,7 +168,7 @@ Point3 = Tuple{Int, Int, Int}
 
 mutable struct CubeState
     id::Int
-    loc::Point2
+    loc::Tuple{Int, Int}
     dir::Char
     pos::Int
 end
@@ -179,7 +178,7 @@ mutable struct Face
     id::Int
     board::Matrix{Char}
     face_coords::Matrix{Int}
-    corner_loc::Point2
+    corner_loc::Tuple{Int, Int}
 end
 
 Cube = Dict{Int, Face}

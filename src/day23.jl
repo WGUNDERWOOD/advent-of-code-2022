@@ -41,6 +41,7 @@ function neighbors2(i::Int, j::Int)
     return ((r, s) for r in i-2:i+2 for s in j-2:j+2 if (r, s) != (i, j))
 end
 
+
 function adjacent(i::Int, j::Int, dir::Tuple{Int, Int})
     return ((i, j) .+ dir .+ a for a in ((0,0), reverse(dir), -1 .* reverse(dir)))
 end
@@ -138,20 +139,6 @@ function count_empty(elves::Elves)
     end
 
     return n_empty
-end
-
-
-function show(elves::Elves)
-
-    (lo_i, hi_i, lo_j, hi_j) = get_bounding_rectangle(elves)
-
-    for i in lo_i:hi_i
-        for j in lo_j:hi_j
-            isnothing(elves[i,j]) ? print('.') : print('#')
-        end
-        println()
-    end
-    println()
 end
 
 

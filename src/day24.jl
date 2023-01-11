@@ -54,39 +54,6 @@ function parse_input(filepath::String)
 end
 
 
-function show(blizzard::Blizzard)
-
-    (m, n) = size(blizzard)
-
-    for i in 1:m
-        for j in 1:n
-
-            if blizzard[i,j][5] == 1
-                print('#')
-            elseif sum(blizzard[i,j]) > 1
-                print(sum(blizzard[i,j]))
-            else
-                if blizzard[i,j] == [0, 0, 0, 0, 0]
-                    print('.')
-                elseif blizzard[i,j] == [1, 0, 0, 0, 0]
-                    print('v')
-                elseif blizzard[i,j] == [0, 1, 0, 0, 0]
-                    print('^')
-                elseif blizzard[i,j] == [0, 0, 1, 0, 0]
-                    print('>')
-                elseif blizzard[i,j] == [0, 0, 0, 1, 0]
-                    print('<')
-                end
-            end
-        end
-
-        println()
-    end
-
-    println()
-end
-
-
 function iterate(blizzard::Blizzard)
 
     (m, n) = size(blizzard)

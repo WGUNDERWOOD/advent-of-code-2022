@@ -25,24 +25,6 @@ struct State
 end
 
 
-function show(state::State)
-
-    pad = 18
-    println(rpad("Time: ", pad), state.time)
-    println(rpad("  Ore: ", pad), state.n_ore)
-    println(rpad("  Clay: ", pad), state.n_clay)
-    println(rpad("  Obsidian: ", pad), state.n_obs)
-    println(rpad("  Geodes: ", pad), state.n_geode)
-    println(rpad("  Ore bots: ", pad), state.n_ore_bot)
-    println(rpad("  Clay bots: ", pad), state.n_clay_bot)
-    println(rpad("  Obsidian bots: ", pad), state.n_obs_bot)
-    println(rpad("  Geode bots: ", pad), state.n_geode_bot)
-    println(rpad("  Skipped ore bot: ", pad), state.skipped_ore_bot)
-    println(rpad("  Skipped clay bot: ", pad), state.skipped_clay_bot)
-    println(rpad("  Skipped obsidian bot: ", pad), state.skipped_obsidian_bot)
-end
-
-
 function parse_input(filepath::String)
 
     blueprints = Blueprint[]
@@ -54,7 +36,8 @@ function parse_input(filepath::String)
         cost_clay_bot = parse(Int, s[14])
         cost_obs_bot = parse.(Int, (s[20], s[23]))
         cost_geode_bot = parse.(Int, (s[29], s[32]))
-        blueprint = Blueprint(id, cost_ore_bot, cost_clay_bot, cost_obs_bot, cost_geode_bot)
+        blueprint = Blueprint(id, cost_ore_bot, cost_clay_bot,
+                              cost_obs_bot, cost_geode_bot)
         push!(blueprints, blueprint)
     end
 
