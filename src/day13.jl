@@ -1,9 +1,5 @@
 println("Day 13")
 
-struct Pair
-    left::Array{}
-end
-
 
 function parse_pairs(filepath::String)
 

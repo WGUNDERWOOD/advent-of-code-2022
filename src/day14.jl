@@ -1,7 +1,6 @@
 println("Day 14")
 
 mutable struct Cave
-    paths::Vector{Vector{Tuple{Int, Int}}}
     layout::Matrix{Char}
     current::Tuple{Int, Int}
     const start::Tuple{Int, Int}
@@ -83,7 +82,7 @@ function parse_cave(paths::Vector{Vector{Tuple{Int, Int}}})
         end
     end
 
-    return Cave(paths, layout, current, start, terminated)
+    return Cave(layout, current, start, terminated)
 end
 
 
@@ -136,20 +135,6 @@ function add_floor!(paths)
     path = [(min_x - h, max_y + 2), (max_x + h, max_y + 2)]
     push!(paths, path)
     return nothing
-end
-
-
-function show(cave::Cave)
-
-    (size_x, size_y) = size(cave.layout)
-
-    for y in 1:size_y
-        for x in 1:size_x
-            print(cave.layout[x,y])
-        end
-        println()
-    end
-    println()
 end
 
 
